@@ -65,6 +65,32 @@ class Board
         @board[ row+pair[0] ][ col+pair[1] ].under_attack.false? &&
         @board[ row+pair[0] ][ col+pair[1] ].piece.color != self.color
       end
+
+      #castling #try to think of something simpler later
+      if self.moved.false?
+        first_rook = @board[row].first.piece
+        second_rook = @board[row].last.piece
+        #rook to king.last(3)
+        if first_rook.class.name == "Rook" && first_rook.moved.false?
+          path_start = first_rook.coordinates[1]
+          path_end = self.coordinates[1]
+          path = row[path_start..path_end]
+          if path.last(3).all? {|square| square.under_attack.false?}
+            if path.last(2).all {|square| square.piece.empty?}
+              available_moves << [row, col-2]
+            end
+          end
+        end
+        if second_rook.class.name == "Rook" && second_rook.moved.false?
+          path_start = second_rook.coordinates[1]
+          path_end = self.coordinates[1]
+          path = row[path_start..path_end]
+          if path.last(3).all? {|square| square.under_attack.false?}
+            if path.last(2).all {|square| square.piece.empty?}
+              available_moves << [row, col-2]
+            end
+          end
+        end
       available_moves
     end
 
