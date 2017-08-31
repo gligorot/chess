@@ -9,7 +9,7 @@ class Board
   end
 
   class Square
-    attr_accessor :position, :piece, :under_attack
+    attr_accessor :coordinates, :piece, :under_attack
 
     def initialize
       @coordinates = []
@@ -29,7 +29,7 @@ class Board
 
 
   def translate_move(move) #a1 = [0,0], a2 = [1,0] (1=2-1, 0=a)
-    col_mapping = {"a"=>0, "b"=>1, "c"=2, "d"=>3, "e"=4, "f"=>5, "g"=>6, "h"=>7}
+    col_mapping = {"a"=>0, "b"=>1, "c"=>2, "d"=>3, "e"=>4, "f"=>5, "g"=>6, "h"=>7}
     move = move.split("")
     return move[1]-1, col_mapping[move[0]]
   end
@@ -68,10 +68,7 @@ class Board
       king_move_pairs = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
 
       king_move_pairs.each do |pair|
-        available_moves << [row+pair[0], col+pair[1]] if
-        ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7)) &&
-        @board[ row+pair[0] ][ col+pair[1] ].under_attack.false? &&
-        @board[ row+pair[0] ][ col+pair[1] ].piece.color != self.color
+        available_moves << [row+pair[0], col+pair[1]] if ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7)) && @board[ row+pair[0] ][ col+pair[1] ].under_attack.false? && @board[ row+pair[0] ][ col+pair[1] ].piece.color != self.color
       end
 
       #castling #try to think of something simpler later
@@ -98,14 +95,15 @@ class Board
             end
           end
         end
+      end
       available_moves
     end
 
   end
 
   class Queen < Piece
-    def initialize(position, symbol, color)
-      super(position, symbol, color)
+    def initialize(position, symbol, color, moved)
+      super(position, symbol, color, moved)
     end
 
     def generate_moves
@@ -152,26 +150,60 @@ class Board
       right.each(&traverse)
       top.reverse.each(&traverse)
       bottom.each(&traverse)
+
+      available_moves
     end
   end
 
   class Bishop < Piece
-    def initialize(position, symbol, color)
-      super(position, symbol, color)
+    def initialize(position, symbol, color, moved)
+      super(position, symbol, color, moved)
     end
+
+    def generate_moves
+      row, col = self.position.coordinates
+      available_moves = []
+      total = []
+
+      traverse = Proc.new do |square| #Later move this alongside rooks and queens to somewhere else
+        if square.piece.empty?
+          available_moves << square.coordinates
+        else
+          available_moves << square.coordinates if square.piece.color != self.color
+          break
+        end
+      end
+
+      directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
+      directions.each do |direction|
+        row_inc, col_inc = direction
+        right = []
+        while row_inc.between?(0,7) && col_inc.between?(0,7)
+          right << @board[row+row_inc][col+col_inc]
+          row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
+          col_inc > 0 ? col_inc+=1 : col_inc-=1
+        end
+        total << right
+      end
+
+      total.each {|direction| direction.each(&traverse)}
+
+      available_moves
+    end
+
   end
 
   class Knight < Piece
-    def initialize(position, symbol, color)
-      super(position, symbol, color)
+    def initialize(position, symbol, color, moved)
+      super(position, symbol, color, moved)
     end
   end
 
   class Pawn < Piece
     attr_accessor :moved
 
-    def initialize(position, symbol, color, moved=false)
-      super(position, symbol, color)
+    def initialize(position, symbol, color, moved)
+      super(position, symbol, color, moved)
       @moved = moved
     end
   end
