@@ -57,7 +57,7 @@ class Board
 
   class King < Piece
 
-    def initialize(position, symbol, color, moved) #potential under attack here too
+    def initialize(position, symbol, color, moved=false) #potential under attack here too
       super(position, symbol, color, moved)
     end
 
@@ -102,7 +102,7 @@ class Board
   end
 
   class Queen < Piece
-    def initialize(position, symbol, color, moved)
+    def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
 
@@ -157,7 +157,7 @@ class Board
   end
 
   class Rook < Piece
-    def initialize(position, symbol, color, moved)
+    def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
 
@@ -199,7 +199,7 @@ class Board
   end
 
   class Bishop < Piece
-    def initialize(position, symbol, color, moved)
+    def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
 
@@ -237,7 +237,7 @@ class Board
   end
 
   class Knight < Piece
-    def initialize(position, symbol, color, moved)
+    def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
 
@@ -263,11 +263,11 @@ class Board
   end
 
   class Pawn < Piece
-    attr_accessor :double_move
-    def initialize(position, symbol, color, moved, double_move=false, move_inc)
-      super(position, symbol, color, moved)
+    attr_accessor :double_move, :move_inc
+    def initialize(position, symbol, color, moved=false, double_move=false, move_inc=0)
+      super(position, symbol, color)#, moved)
       @double_move = double_move
-      self.color? == "white" ? move_inc = 1 : move_inc = -1
+      self.color == "white" ? move_inc = 1 : move_inc = -1
     end
 
     def generate_moves
@@ -320,13 +320,63 @@ class Board
 
   def print_board
     h_index = 8
-    @board.reverse.each do |row|
-      puts "#{h_index} #{row.map { |square| square.piece.empty? ? "_" : square.piece }.join(" ")}"
+    @board.each do |row|
+      puts "#{h_index} #{row.map { |square| square.piece == "" ? "_" : square.piece.symbol }.join(" ")}"
       h_index -= 1
     end
     puts "  a b c d e f g h"
+  end
+
+  def initialize_board_with_pieces
+    #white
+    @board[1].each_with_index {|square, ind| @board[1][ind].piece = pawn = Pawn.new(square, "♙", "white") }
+
+    @board[0][0].piece = left_rook = Rook.new(@board[0][0], "♖", "white")
+    # = left_rook
+    @board[0][7].piece = right_rook = Rook.new(@board[0][7], "♖", "white")
+
+    @board[0][1].piece = left_knight = Knight.new(@board[0][1], "♘", "white")
+    @board[0][6].piece = right_knight = Knight.new(@board[0][6], "♘", "white")
+
+    @board[0][2].piece = right_bishop = Knight.new(@board[0][2], "♗", "white")
+    @board[0][5].piece = left_bishop = Knight.new(@board[0][5], "♗", "white")
+
+    @board[0][3].piece = queen = Queen.new(@board[0][3], "♕", "white" )
+    @board[0][4].piece = king = King.new(@board[0][4], "♔", 'white')
+
+    #black
+    @board[6].each_with_index {|square, ind| @board[6][ind].piece = black_pawn = Pawn.new(square,"♟", "black") }
+
+    @board[7][0].piece = left_black_rook = Rook.new(@board[7][0], "♜", "black")
+    @board[7][7].piece = right_black_rook = Rook.new(@board[7][7], "♜", "black")
+
+    @board[7][1].piece = left_black_knight = Knight.new(@board[7][1], "♞", "black")
+    @board[7][6].piece = right_black_knight = Knight.new(@board[7][6], "♞", "black")
+
+    @board[7][2].piece = right_black_bishop = Knight.new(@board[7][2], "♝", "black")
+    @board[7][5].piece = left_black_bishop = Knight.new(@board[7][5], "♝", "black")
+
+    @board[7][3].piece = black_queen = Queen.new(@board[7][3], "♛", "black" )
+    @board[7][4].piece = black_king = King.new(@board[7][4], "♚", 'black')
   end
 end
 
 board = Board.new
 board.print_board
+board.initialize_board_with_pieces
+board.print_board
+
+=begin
+♔	U+2654	&#9812;
+white chess queen	♕	U+2655	&#9813;
+white chess rook	♖	U+2656	&#9814;
+white chess bishop	♗	U+2657	&#9815;
+white chess knight	♘	U+2658	&#9816;
+white chess pawn	♙	U+2659	&#9817;
+black chess king	♚	U+265A	&#9818;
+black chess queen	♛	U+265B	&#9819;
+black chess rook	♜	U+265C	&#9820;
+black chess bishop	♝	U+265D	&#9821;
+black chess knight	♞	U+265E	&#9822;
+black chess pawn	♟
+=end
