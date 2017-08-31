@@ -1,5 +1,5 @@
 class Board
-  attr_accessor :board, :player_one, :player_two
+  attr_accessor :player_one, :player_two, :board
 
   def initialize(player_one="White", player_two="Black")
     @player_one = player_one
@@ -32,6 +32,10 @@ class Board
     col_mapping = {"a"=>0, "b"=>1, "c"=>2, "d"=>3, "e"=>4, "f"=>5, "g"=>6, "h"=>7}
     move = move.split("")
     return move[1]-1, col_mapping[move[0]]
+  end
+
+  def board_accessor(row, col)
+    @board[row][col]
   end
 
 
@@ -262,22 +266,31 @@ class Board
     end
   end
 
-  class Pawn < Piece
-    attr_accessor :double_move, :move_inc
-    def initialize(position, symbol, color, moved=false, double_move=false, move_inc=0)
-      super(position, symbol, color)#, moved)
+  class Pawn
+    attr_accessor :double_move, :moved, :position, :symbol, :color
+
+    def initialize(position, symbol, color, moved=false, double_move=false)
+      @position = position #square <> thing
+      @symbol = symbol
+      @color = color
+      @moved = moved
       @double_move = double_move
-      self.color == "white" ? move_inc = 1 : move_inc = -1
     end
 
     def generate_moves
       row, col = self.position.coordinates
       available_moves = []
 
+      if self.color == "white"
+        move_inc = 1
+      else
+        move_inc = -1
+      end
+
       #normal move
-      available_moves << [row+move_inc, col] if (row+1).between?(0,7) #the if will not be needed later
+      available_moves << [row+move_inc, col] if (row+1).between?(0,7) #the if will not be needed later when promotion is done
       #start position double move
-      available_moves << [row+(move_inc*2), col] if self.moved.false?
+      available_moves << [row+(move_inc*2), col] if self.moved == false #unless there is something in front !!!!!!!!
 
       #normal taking
       if (col+1).between?(0,7)
@@ -286,13 +299,14 @@ class Board
           available_moves << [row+move_inc, col+1] if front_right.piece.color != self.color
         end
       end
+=begin
       if (col-1).between?(0,7)
         front_left = @board[row+move_inc][col-1]
         if !(front_left.piece.empty?)
           available_moves << [row+move_inc, col-1] if front_left.piece.color != self.color
         end
       end
-
+=begin
       #en passant
       if (col+1).between?(0,7) #repated with above, fix it up later
         right = @board[row][col+1]
@@ -315,6 +329,7 @@ class Board
           end
         end
       end
+=end
     end
   end
 
@@ -325,6 +340,8 @@ class Board
       h_index -= 1
     end
     puts "  a b c d e f g h"
+    puts "#{@board[1][0].piece.generate_moves}"
+    #puts "#{@board[0][2].piece.generate_moves}"
   end
 
   def initialize_board_with_pieces
@@ -362,9 +379,11 @@ class Board
 end
 
 board = Board.new
-board.print_board
+#board.print_board
+board.generate_square_coordinates
 board.initialize_board_with_pieces
 board.print_board
+#puts board.board_accessor(0,0)
 
 =begin
 ♔	U+2654	&#9812;
