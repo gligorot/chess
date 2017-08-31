@@ -36,21 +36,29 @@ class Board
 
 
   class Piece
-    attr_accessor :position, :symbol, :color
+    attr_accessor :position, :symbol, :color, :moved
 
-    def initialize(position, symbol, color)
+    def initialize(position, symbol, color, moved=false)
       @position = position #square <> thing
       @symbol = symbol
       @color = color
+      @moved = moved
     end
+
+    def move(move = gets.chomp)
+      potential_move = translate_move(move) #ex. from a1 to [0,0]
+      if self.available_moves.any? {|move| potential_move == move}
+        self.position = @board[potential_move[0]][potential_move[1]]
+        self.moved = true
+      end
+    end
+
   end
 
   class King < Piece
-    attr_accessor :moved
 
-    def initialize(position, symbol, color, moved=false) #potential under attack here too
-      super(position, symbol, color)
-      @moved = moved
+    def initialize(position, symbol, color, moved) #potential under attack here too
+      super(position, symbol, color, moved)
     end
 
     def generate_moves
@@ -70,7 +78,6 @@ class Board
       if self.moved.false?
         first_rook = @board[row].first.piece
         second_rook = @board[row].last.piece
-        #rook to king.last(3)
         if first_rook.class.name == "Rook" && first_rook.moved.false?
           path_start = first_rook.coordinates[1]
           path_end = self.coordinates[1]
@@ -94,28 +101,57 @@ class Board
       available_moves
     end
 
-    def move(move = gets.chomp)
-      potential_move = translate_move(move) #ex. from a1 to [0,0]
-      if self.available_moves.any? {|move| potential_move == move}
-        self.position = @board[potential_move[0]][potential_move[1]]
-        self.moved = true
-      end
-    end
-
   end
 
   class Queen < Piece
     def initialize(position, symbol, color)
       super(position, symbol, color)
     end
+
+    def generate_moves
+      row, col = self.position.coordinates
+      available_moves = []
+      #paused before i do rook and bishop
+    end
   end
 
   class Rook < Piece
-    attr_accessor :moved
+    def initialize(position, symbol, color, moved)
+      super(position, symbol, color, moved)
+    end
 
-    def initialize(position, symbol, color, moved=false)
-      super(position, symbol, color)
-      @moved = moved
+    def generate_moves
+      row, col = self.position.coordinates
+      available_moves = []
+
+      traverse = Proc.new do |square| #CAN BE USED ANYWHERE
+        if square.piece.empty?
+          available_moves << square.coordinates
+        else
+          available_moves << square.coordinates if square.piece.color != self.color
+          break
+        end
+      end
+
+      #horizontal
+      left = @board[row][row.first...col] #elements left to rook #moved reverse down
+      right = @board[row][col+1..row.last] #elements right to rook
+
+      #vertical
+      top, bottom = [], []
+      8.times do |row_index|
+        square = @board[row_index][col]
+        if row_index < row
+          top << square
+        elsif row_index > row
+          bottom << square
+        end
+      end
+
+      left.reverse.each(&traverse)
+      right.each(&traverse)
+      top.reverse.each(&traverse)
+      bottom.each(&traverse)
     end
   end
 
