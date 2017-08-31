@@ -11,20 +11,106 @@ class Board
   class Square
     attr_accessor :position, :piece, :under_attack
 
-    def initialize(position="", piece="")
-      @position = position
-      @piece = piece
+    def initialize
+      @coordinates = []
+      @piece = ""
       @under_attack = false
     end
   end
+
+  def generate_square_coordinates
+    @board.each_with_index do |row, row_index|
+      row.each_with_index do |square, square_index|
+        square.coordinates << row_index
+        square.coordinates << square_index
+      end
+    end
+  end
+
+
+  def translate_move(move) #a1 = [0,0], a2 = [1,0] (1=2-1, 0=a)
+    col_mapping = {"a"=>0, "b"=>1, "c"=2, "d"=>3, "e"=4, "f"=>5, "g"=>6, "h"=>7}
+    move = move.split("")
+    return move[1]-1, col_mapping[move[0]]
+  end
+
 
   class Piece
     attr_accessor :position, :symbol, :color
 
     def initialize(position, symbol, color)
-      @position = position
+      @position = position #square <> thing
       @symbol = symbol
       @color = color
+    end
+  end
+
+  class King < Piece
+    attr_accessor :moved
+
+    def initialize(position, symbol, color, moved=false) #potential under attack here too
+      super(position, symbol, color)
+      @moved = moved
+    end
+
+    def generate_moves
+      row, col = self.position.coordinates #this is the square  <Sqr nr thing> and it has coordinates, piece and under attack thingies
+      available_moves = []
+
+      king_move_pairs = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
+
+      king_move_pairs.each do |pair|
+        available_moves << [row+pair[0], col+pair[1]] if
+        ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7)) &&
+        @board[ row+pair[0] ][ col+pair[1] ].under_attack.false? &&
+        @board[ row+pair[0] ][ col+pair[1] ].piece.color != self.color
+      end
+      available_moves
+    end
+
+    def move(move = gets.chomp)
+      potential_move = translate_move(move) #ex. from a1 to [0,0]
+      if self.available_moves.any? {|move| potential_move == move}
+        self.position = @board[potential_move[0]][potential_move[1]]
+        self.moved = true
+      end
+    end
+
+  end
+
+  class Queen < Piece
+    def initialize(position, symbol, color)
+      super(position, symbol, color)
+    end
+  end
+
+  class Rook < Piece
+    attr_accessor :moved
+
+    def initialize(position, symbol, color, moved=false)
+      super(position, symbol, color)
+      @moved = moved
+    end
+  end
+
+  class Bishop < Piece
+    def initialize(position, symbol, color)
+      super(position, symbol, color)
+    end
+  end
+
+  class Knight < Piece
+    def initialize(position, symbol, color)
+      super(position, symbol, color)
+    end
+  end
+
+  class Pawn < Piece
+    attr_accessor :moved
+
+    def initialize(position, symbol, color, moved=false)
+      super(position, symbol, color)
+      @moved = moved
     end
   end
 
@@ -35,15 +121,6 @@ class Board
       h_index -= 1
     end
     puts "  a b c d e f g h"
-  end
-
-  def generate_square_coordinates
-    @board.each_with_index do |row, row_index|
-      row.each_with_index do |square, square_index|
-        square.position << row_index
-        square.position << square_index
-      end
-    end
   end
 end
 
