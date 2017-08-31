@@ -111,6 +111,15 @@ class Board
       available_moves = []
       all_directions = []
 
+      traverse = Proc.new do |square| #Later move this alongside rooks and queens to somewhere else
+        if square.piece.empty?
+          available_moves << square.coordinates
+        else
+          available_moves << square.coordinates if square.piece.color != self.color
+          break
+        end
+      end
+
       #horizontal
       left = @board[row][row.first...col]
       right = @board[row][col+1..row.last]
@@ -231,14 +240,81 @@ class Board
     def initialize(position, symbol, color, moved)
       super(position, symbol, color, moved)
     end
+
+    def generate_moves
+      row, col = self.position.coordinates
+      available_moves = []
+
+      directions = [[-2,1],[-2,-1],[1,2],[-1,2],[2,1],[2,-1],[1,-2],[-1,-2]]
+
+      directions.each do |direction|
+        row_inc, col_inc = direction
+        if (row+row_inc).between?(0,7) && (col+col_inc).between?(0,7)
+          square = @board[row+row_inc][col+col_inc]
+          if square.piece.empty?
+            available_moves << square.coordinates
+          else
+            available_moves << square.coordinates if square.piece.color != self.color
+          end
+        end
+      end
+      available_moves
+    end
   end
 
   class Pawn < Piece
-    attr_accessor :moved
-
-    def initialize(position, symbol, color, moved)
+    attr_accessor :double_move
+    def initialize(position, symbol, color, moved, double_move=false, move_inc)
       super(position, symbol, color, moved)
-      @moved = moved
+      @double_move = double_move
+      self.color? == "white" ? move_inc = 1 : move_inc = -1
+    end
+
+    def generate_moves
+      row, col = self.position.coordinates
+      available_moves = []
+
+      #normal move
+      available_moves << [row+move_inc, col] if (row+1).between?(0,7) #the if will not be needed later
+      #start position double move
+      available_moves << [row+(move_inc*2), col] if self.moved.false?
+
+      #normal taking
+      if (col+1).between?(0,7)
+        front_right = @board[row+move_inc][col+1]
+        if !(front_right.piece.empty?)
+          available_moves << [row+move_inc, col+1] if front_right.piece.color != self.color
+        end
+      end
+      if (col-1).between?(0,7)
+        front_left = @board[row+move_inc][col-1]
+        if !(front_left.piece.empty?)
+          available_moves << [row+move_inc, col-1] if front_left.piece.color != self.color
+        end
+      end
+
+      #en passant
+      if (col+1).between?(0,7) #repated with above, fix it up later
+        right = @board[row][col+1]
+        if !(right.piece.empty?)
+          if right.piece.class.name == "Pawn" && right.piece.color != self.color
+            if right.piece.double_move.true?
+              available_moves << [row, col+1]
+            end
+          end
+        end
+      end
+
+      if (col-1).between?(0,7) #repated with above, fix it up later
+        left = @board[row][col-1]
+        if !(left.piece.empty?)
+          if left.piece.class.name == "Pawn" && left.piece.color != self.color
+            if left.piece.double_move.true?
+              available_moves << [row, col-1]
+            end
+          end
+        end
+      end
     end
   end
 
