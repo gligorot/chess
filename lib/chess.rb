@@ -109,7 +109,41 @@ class Board
     def generate_moves
       row, col = self.position.coordinates
       available_moves = []
-      #paused before i do rook and bishop
+      all_directions = []
+
+      #horizontal
+      left = @board[row][row.first...col]
+      right = @board[row][col+1..row.last]
+      all_directions << left << right
+
+      #vertical
+      top, bottom = [], []
+      8.times do |row_index|
+        square = @board[row_index][col]
+        if row_index < row
+          top << square
+        elsif row_index > row
+          bottom << square
+        end
+      end
+      all_directions << top << bottom
+
+      #diagonals
+      directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
+      directions.each do |direction|
+        row_inc, col_inc = direction
+        diagonal = []
+        while row_inc.between?(0,7) && col_inc.between?(0,7)
+          diagonal << @board[row+row_inc][col+col_inc]
+          row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
+          col_inc > 0 ? col_inc+=1 : col_inc-=1
+        end
+        all_directions << diagonal
+      end
+
+      all_directions.each {|direction| direction.each(&traverse)}
+
+      available_moves
     end
   end
 
@@ -163,7 +197,7 @@ class Board
     def generate_moves
       row, col = self.position.coordinates
       available_moves = []
-      total = []
+      all_directions = []
 
       traverse = Proc.new do |square| #Later move this alongside rooks and queens to somewhere else
         if square.piece.empty?
@@ -177,16 +211,16 @@ class Board
       directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
       directions.each do |direction|
         row_inc, col_inc = direction
-        right = []
+        diagonal = []
         while row_inc.between?(0,7) && col_inc.between?(0,7)
-          right << @board[row+row_inc][col+col_inc]
+          diagonal << @board[row+row_inc][col+col_inc]
           row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
           col_inc > 0 ? col_inc+=1 : col_inc-=1
         end
-        total << right
+        all_directions << diagonal
       end
 
-      total.each {|direction| direction.each(&traverse)}
+      all_directions.each {|direction| direction.each(&traverse)}
 
       available_moves
     end
