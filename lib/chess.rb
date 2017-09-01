@@ -49,7 +49,7 @@ class Board
       @moved = moved
     end
 
-    def move(move = gets.chomp)
+    def move(move = gets.chomp) #fixfifxfixxxfix
       potential_move = translate_move(move) #ex. from a1 to [0,0]
       if self.available_moves.any? {|move| potential_move == move}
         self.position = @board[potential_move[0]][potential_move[1]]
@@ -64,206 +64,222 @@ class Board
     def initialize(position, symbol, color, moved=false) #potential under attack here too
       super(position, symbol, color, moved)
     end
+  end
 
-    def generate_moves
-      row, col = self.position.coordinates #this is the square  <Sqr nr thing> and it has coordinates, piece and under attack thingies
-      available_moves = []
+  def generate_moves_king(figure)
+    figure = board_accessor(figure[0], figure[1]).piece
+    row, col = figure.position.coordinates
+    available_moves = []
 
-      king_move_pairs = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
+    king_move_pairs = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
 
-      king_move_pairs.each do |pair|
-        available_moves << [row+pair[0], col+pair[1]] if ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7)) && @board[ row+pair[0] ][ col+pair[1] ].under_attack.false? && @board[ row+pair[0] ][ col+pair[1] ].piece.color != self.color
-      end
-
-      #castling #try to think of something simpler later
-      if self.moved.false?
-        first_rook = @board[row].first.piece
-        second_rook = @board[row].last.piece
-        if first_rook.class.name == "Rook" && first_rook.moved.false?
-          path_start = first_rook.coordinates[1]
-          path_end = self.coordinates[1]
-          path = row[path_start..path_end]
-          if path.last(3).all? {|square| square.under_attack.false?}
-            if path.last(2).all {|square| square.piece.empty?}
-              available_moves << [row, col-2]
-            end
-          end
-        end
-        if second_rook.class.name == "Rook" && second_rook.moved.false?
-          path_start = second_rook.coordinates[1]
-          path_end = self.coordinates[1]
-          path = row[path_start..path_end]
-          if path.last(3).all? {|square| square.under_attack.false?}
-            if path.last(2).all {|square| square.piece.empty?}
-              available_moves << [row, col-2]
-            end
-          end
+    king_move_pairs.each do |pair|
+      board_pos = board_accessor(row+pair[0], col+pair[1])
+      if ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7)) && board_pos.under_attack == false
+        if board_pos.piece == ""
+          available_moves << [row+pair[0], col+pair[1]]
+        elsif board_pos.piece.color != figure.color
+          available_moves << [row+pair[0], col+pair[1]]
         end
       end
-      available_moves
     end
 
+    #castling #try to think of something simpler later
+    if figure.moved == false
+      first_rook = board_accessor(row, 0).piece
+      second_rook = board_accessor(row, 7).piece
+      if first_rook.class.name == "Rook" && first_rook.moved == false
+        path_start = first_rook.coordinates[1]
+        path_end = figure.coordinates[1]
+        path = row[path_start..path_end]
+        if path.last(3).all? {|square| square.under_attack.false?}
+          if path.last(2).all {|square| square.piece.empty?}
+            available_moves << [row, col-2]
+          end
+        end
+      end
+      if second_rook.class.name == "Rook" && second_rook.moved.false?
+        path_start = second_rook.coordinates[1]
+        path_end = figure.position.coordinates[1] #problem alert
+        path = row[path_start..path_end]
+        if path.last(3).all? {|square| square.under_attack == false}
+          if path.last(2).all {|square| square.piece == ""}
+            available_moves << [row, col-2]
+          end
+        end
+      end
+    end
+    available_moves
   end
 
   class Queen < Piece
     def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
+  end
 
-    def generate_moves
-      row, col = self.position.coordinates
-      available_moves = []
-      all_directions = []
+  def generate_moves_queen(figure)
+    figure = board_accessor(figure[0], figure[1]).piece
+    row, col = figure.position.coordinates
+    available_moves = []
+    all_directions = []
 
-      traverse = Proc.new do |square| #Later move this alongside rooks and queens to somewhere else
-        if square.piece.empty?
+    #horizontal
+    left = board_accessor(row, 0...col)#@board[row][row.first...col]
+    right = board_accessor(row, col+1..8)#@board[row][col+1..row.last]
+    all_directions << left << right
+
+    #vertical
+    top, bottom = [], []
+    8.times do |row_index|
+      square = board_accessor(row_index, col)#@board[row_index][col]
+      if row_index < row
+        top << square
+      elsif row_index > row
+        bottom << square
+      end
+    end
+    all_directions << top << bottom
+
+    #diagonals
+    directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
+
+    directions.each do |direction|
+      row_inc, col_inc = direction
+      diagonal = []
+      while (row+row_inc).between?(0,7) && (col+col_inc).between?(0,7)
+        diagonal << board_accessor(row+row_inc, col+col_inc)#@board[row+row_inc][col+col_inc]
+        row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
+        col_inc > 0 ? col_inc+=1 : col_inc-=1
+      end
+      all_directions << diagonal
+    end
+
+    all_directions.each do |direction|
+      direction.each do |square|
+        if square.piece == ""
           available_moves << square.coordinates
         else
-          available_moves << square.coordinates if square.piece.color != self.color
-          break
+          if square.piece.color != figure.color
+            available_moves << square.coordinates
+            break
+          end
         end
       end
-
-      #horizontal
-      left = @board[row][row.first...col]
-      right = @board[row][col+1..row.last]
-      all_directions << left << right
-
-      #vertical
-      top, bottom = [], []
-      8.times do |row_index|
-        square = @board[row_index][col]
-        if row_index < row
-          top << square
-        elsif row_index > row
-          bottom << square
-        end
-      end
-      all_directions << top << bottom
-
-      #diagonals
-      directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
-      directions.each do |direction|
-        row_inc, col_inc = direction
-        diagonal = []
-        while row_inc.between?(0,7) && col_inc.between?(0,7)
-          diagonal << @board[row+row_inc][col+col_inc]
-          row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
-          col_inc > 0 ? col_inc+=1 : col_inc-=1
-        end
-        all_directions << diagonal
-      end
-
-      all_directions.each {|direction| direction.each(&traverse)}
-
-      available_moves
     end
+
+    available_moves
   end
 
   class Rook < Piece
     def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
+  end
 
-    def generate_moves
-      row, col = self.position.coordinates
-      available_moves = []
+  def generate_moves_rook(figure)
+    figure = board_accessor(figure[0], figure[1]).piece
+    row, col = figure.position.coordinates
+    available_moves = []
 
-      traverse = Proc.new do |square| #CAN BE USED ANYWHERE
-        if square.piece.empty?
+    #horizontal
+    left = board_accessor(row, 0...col)#@board[row][row.first...col] #elements left to rook #moved reverse down
+    right = board_accessor(row, col+1..8)#@board[row][col+1..row.last] #elements right to rook
+
+    #vertical
+    top, bottom = [], []
+    8.times do |row_index|
+      square = board_accessor(row_index, col)#@board[row_index][col]
+      if row_index < row
+        top << square
+      elsif row_index > row
+        bottom << square
+      end
+    end
+
+    [left, right, top, bottom].each do |direction|
+      direction.each do |square|
+        if square.piece == ""
           available_moves << square.coordinates
         else
-          available_moves << square.coordinates if square.piece.color != self.color
-          break
+          if square.piece.color != figure.color
+            available_moves << square.coordinates
+            break
+          end
         end
       end
-
-      #horizontal
-      left = @board[row][row.first...col] #elements left to rook #moved reverse down
-      right = @board[row][col+1..row.last] #elements right to rook
-
-      #vertical
-      top, bottom = [], []
-      8.times do |row_index|
-        square = @board[row_index][col]
-        if row_index < row
-          top << square
-        elsif row_index > row
-          bottom << square
-        end
-      end
-
-      left.reverse.each(&traverse)
-      right.each(&traverse)
-      top.reverse.each(&traverse)
-      bottom.each(&traverse)
-
-      available_moves
     end
+
+    available_moves
   end
 
   class Bishop < Piece
     def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
+  end
 
-    def generate_moves
-      row, col = self.position.coordinates
-      available_moves = []
-      all_directions = []
 
-      traverse = Proc.new do |square| #Later move this alongside rooks and queens to somewhere else
-        if square.piece.empty?
-          available_moves << square.coordinates
-        else
-          available_moves << square.coordinates if square.piece.color != self.color
-          break
-        end
+  def generate_moves_bishop(figure)
+    figure = board_accessor(figure[0], figure[1]).piece
+    row, col = figure.position.coordinates
+    available_moves = []
+    all_directions = []
+
+    directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
+
+    directions.each do |direction|
+      row_inc, col_inc = direction
+      diagonal = []
+      while (row+row_inc).between?(0,7) && (col+col_inc).between?(0,7)
+        diagonal << board_accessor(row+row_inc, col+col_inc)#@board[row+row_inc][col+col_inc]
+        row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
+        col_inc > 0 ? col_inc+=1 : col_inc-=1
       end
-
-      directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
-      directions.each do |direction|
-        row_inc, col_inc = direction
-        diagonal = []
-        while row_inc.between?(0,7) && col_inc.between?(0,7)
-          diagonal << @board[row+row_inc][col+col_inc]
-          row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
-          col_inc > 0 ? col_inc+=1 : col_inc-=1
-        end
-        all_directions << diagonal
-      end
-
-      all_directions.each {|direction| direction.each(&traverse)}
-
-      available_moves
+      all_directions << diagonal
     end
 
+    all_directions.each  do |direction|
+      direction.each do |square|
+        if square.piece == ""
+          available_moves << square.coordinates
+        else
+          if square.piece.color != figure.color
+            available_moves << square.coordinates
+            break
+          end
+        end
+      end
+    end
+
+    available_moves
   end
 
   class Knight < Piece
     def initialize(position, symbol, color, moved=false)
       super(position, symbol, color, moved)
     end
+  end
 
-    def generate_moves
-      row, col = self.position.coordinates
-      available_moves = []
+  def generate_moves_knight(figure)
+    figure = board_accessor(figure[0], figure[1]).piece
+    row, col = figure.position.coordinates
+    available_moves = []
 
-      directions = [[-2,1],[-2,-1],[1,2],[-1,2],[2,1],[2,-1],[1,-2],[-1,-2]]
+    directions = [[-2,1],[-2,-1],[1,2],[-1,2],[2,1],[2,-1],[1,-2],[-1,-2]]
 
-      directions.each do |direction|
-        row_inc, col_inc = direction
-        if (row+row_inc).between?(0,7) && (col+col_inc).between?(0,7)
-          square = @board[row+row_inc][col+col_inc]
-          if square.piece.empty?
-            available_moves << square.coordinates
-          else
-            available_moves << square.coordinates if square.piece.color != self.color
-          end
+    directions.each do |direction|
+      row_inc, col_inc = direction
+      if (row+row_inc).between?(0,7) && (col+col_inc).between?(0,7)
+        square = board_accessor(row+row_inc, col+col_inc)#@board[row+row_inc][col+col_inc]
+        if square.piece == ""
+          available_moves << square.coordinates
+        else
+          available_moves << square.coordinates if square.piece.color != figure.color
         end
       end
-      available_moves
     end
+    available_moves
   end
 
   class Pawn
@@ -276,75 +292,79 @@ class Board
       @moved = moved
       @double_move = double_move
     end
-
-    def generate_moves
-      row, col = self.position.coordinates
-      available_moves = []
-
-      if self.color == "white"
-        move_inc = 1
-      else
-        move_inc = -1
-      end
-
-      #normal move
-      available_moves << [row+move_inc, col] if (row+1).between?(0,7) #the if will not be needed later when promotion is done
-      #start position double move
-      available_moves << [row+(move_inc*2), col] if self.moved == false #unless there is something in front !!!!!!!!
-
-      #normal taking
-      if (col+1).between?(0,7)
-        front_right = @board[row+move_inc][col+1]
-        if !(front_right.piece.empty?)
-          available_moves << [row+move_inc, col+1] if front_right.piece.color != self.color
-        end
-      end
-=begin
-      if (col-1).between?(0,7)
-        front_left = @board[row+move_inc][col-1]
-        if !(front_left.piece.empty?)
-          available_moves << [row+move_inc, col-1] if front_left.piece.color != self.color
-        end
-      end
-=begin
-      #en passant
-      if (col+1).between?(0,7) #repated with above, fix it up later
-        right = @board[row][col+1]
-        if !(right.piece.empty?)
-          if right.piece.class.name == "Pawn" && right.piece.color != self.color
-            if right.piece.double_move.true?
-              available_moves << [row, col+1]
-            end
-          end
-        end
-      end
-
-      if (col-1).between?(0,7) #repated with above, fix it up later
-        left = @board[row][col-1]
-        if !(left.piece.empty?)
-          if left.piece.class.name == "Pawn" && left.piece.color != self.color
-            if left.piece.double_move.true?
-              available_moves << [row, col-1]
-            end
-          end
-        end
-      end
-=end
-    end
   end
+
+  def generate_moves_pawn(figure)
+    figure = board_accessor(figure[0], figure[1]).piece
+    row, col = figure.position.coordinates
+    available_moves = []
+
+    if figure.color == "white"
+      move_inc = 1
+    else
+      move_inc = -1
+    end
+
+    #normal move
+    available_moves << [row+move_inc, col] if (row+1).between?(0,7) #the if will not be needed later when promotion is done
+    #start position double move
+    available_moves << [row+(move_inc*2), col] if figure.moved == false #unless there is something in front !!!!!!!! FIX LATER
+
+    #normal taking
+    if (col+1).between?(0,7)
+      front_right = board_accessor(row+move_inc, col+1)#@board[row+move_inc][col+1]
+      if !(front_right.piece == "")
+        available_moves << [row+move_inc, col+1] if front_right.piece.color != figure.color
+      end
+    end
+
+    if (col-1).between?(0,7)
+      front_left = board_accessor(row+move_inc, col-1)#@board[row+move_inc][col-1]
+      if !(front_left.piece == "")
+        available_moves << [row+move_inc, col-1] if front_left.piece.color != figure.color
+      end
+    end
+
+    #en passant
+    if (col+1).between?(0,7) #repated with above, fix it up later
+      right = board_accessor(row, col+1)#@board[row][col+1]
+      if !(right.piece == "")
+        if right.piece.class.name == "Pawn" && right.piece.color != figure.color
+          if right.piece.double_move.true?
+            available_moves << [row, col+1]
+          end
+        end
+      end
+    end
+
+    if (col-1).between?(0,7) #repated with above, fix it up later
+      left = board_accessor(row, col-1) #@board[row][col-1]
+      if !(left.piece == "")
+        if left.piece.class.name == "Pawn" && left.piece.color != figure.color
+          if left.piece.double_move.true?
+            available_moves << [row, col-1]
+          end
+        end
+      end
+    end
+  available_moves
+  end
+
 
   def print_board
     h_index = 8
-    @board.each do |row|
+    @board.reverse.each do |row|
       puts "#{h_index} #{row.map { |square| square.piece == "" ? "_" : square.piece.symbol }.join(" ")}"
       h_index -= 1
     end
     puts "  a b c d e f g h"
-    puts "#{@board[1][0].piece.generate_moves}"
+    #puts "#{@board[1][0].piece.generate_moves}" #CURRENT PROBLEM
     #puts "#{@board[0][2].piece.generate_moves}"
   end
 
   def initialize_board_with_pieces
+    #testing
+    @board[4][4].piece = knight = Knight.new(@board[4][4], "♘", "white")
     #white
     @board[1].each_with_index {|square, ind| @board[1][ind].piece = pawn = Pawn.new(square, "♙", "white") }
 
@@ -383,19 +403,5 @@ board = Board.new
 board.generate_square_coordinates
 board.initialize_board_with_pieces
 board.print_board
-#puts board.board_accessor(0,0)
-
-=begin
-♔	U+2654	&#9812;
-white chess queen	♕	U+2655	&#9813;
-white chess rook	♖	U+2656	&#9814;
-white chess bishop	♗	U+2657	&#9815;
-white chess knight	♘	U+2658	&#9816;
-white chess pawn	♙	U+2659	&#9817;
-black chess king	♚	U+265A	&#9818;
-black chess queen	♛	U+265B	&#9819;
-black chess rook	♜	U+265C	&#9820;
-black chess bishop	♝	U+265D	&#9821;
-black chess knight	♞	U+265E	&#9822;
-black chess pawn	♟
-=end
+puts print board.generate_moves_pawn([1,1])
+puts print board.generate_moves_queen([4,4])
