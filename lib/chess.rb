@@ -140,12 +140,14 @@ class Board
     king_move_pairs = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
 
     king_move_pairs.each do |pair|
-      board_pos = board_accessor(row+pair[0], col+pair[1])
-      if ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7)) && board_pos.under_attack == false
-        if board_pos.piece == ""
-          available_moves << [row+pair[0], col+pair[1]]
-        elsif board_pos.piece.color != figure.color
-          available_moves << [row+pair[0], col+pair[1]]
+      if ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7))
+        board_pos = board_accessor(row+pair[0], col+pair[1])
+        if board_pos.under_attack == false
+          if board_pos.piece == ""
+            available_moves << [row+pair[0], col+pair[1]]
+          elsif board_pos.piece.color != figure.color
+            available_moves << [row+pair[0], col+pair[1]]
+          end
         end
       end
     end
@@ -190,7 +192,7 @@ class Board
     #horizontal
     left = board_accessor(row, 0...col)#@board[row][row.first...col]
     right = board_accessor(row, col+1..8)#@board[row][col+1..row.last]
-    all_directions << left << right
+    all_directions << left.reverse << right
 
     #vertical
     top, bottom = [], []
@@ -202,7 +204,7 @@ class Board
         bottom << square
       end
     end
-    all_directions << top << bottom
+    all_directions << top.reverse << bottom
 
     #diagonals
     directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
@@ -223,10 +225,8 @@ class Board
         if square.piece == ""
           available_moves << square.coordinates
         else
-          if square.piece.color != figure.color
-            available_moves << square.coordinates
-            break
-          end
+          available_moves << square.coordinates if square.piece.color != figure.color
+          break
         end
       end
     end
@@ -256,23 +256,18 @@ class Board
       end
     end
 
-    [left, right, top, bottom].each do |direction|
+    [left.reverse, right, top.reverse, bottom].each do |direction|
       direction.each do |square|
         if square.piece == ""
           available_moves << square.coordinates
         else
-          if square.piece.color != figure.color
-            available_moves << square.coordinates
-            break
-          end
+          available_moves << square.coordinates if square.piece.color != figure.color
+          break
         end
       end
     end
-
     available_moves
   end
-
-
 
 
   def generate_moves_bishop(figure)
@@ -299,10 +294,8 @@ class Board
         if square.piece == ""
           available_moves << square.coordinates
         else
-          if square.piece.color != figure.color
-            available_moves << square.coordinates
-            break
-          end
+          available_moves << square.coordinates if square.piece.color != figure.color
+          break
         end
       end
     end
@@ -337,54 +330,27 @@ class Board
     row, col = figure.position.coordinates
     available_moves = []
 
-    if figure.color == "white"
-      move_inc = 1
-    else
-      move_inc = -1
-    end
+
+    move_inc= figure.color=="white" ? 1 : -1
 
     #normal move
     available_moves << [row+move_inc, col] if (row+move_inc).between?(0,7) && board_accessor(row+move_inc, col).piece == "" #fix with promotion in mid
     #start position double move
     available_moves << [row+(move_inc*2), col] if figure.moved == false && board_accessor(row+move_inc, col).piece == "" && board_accessor(row+(move_inc*2), col).piece == ""
 
-    #pair front_right with col+1, front left with col-1 #FIX
-
     #normal taking
-    if (col+1).between?(0,7)
-      front_right = board_accessor(row+move_inc, col+1)
-      if !(front_right.piece == "")
-        available_moves << [row+move_inc, col+1] if front_right.piece.color != figure.color
+    [1,-1].each do |option|
+      if (col+option).between?(0,7)
+        pot = board_accessor(row+move_inc, col+option).piece
+        available_moves << [row+move_inc, col+option] if pot != "" && pot.color != figure.color
       end
     end
-
-    if (col-1).between?(0,7)
-      front_left = board_accessor(row+move_inc, col-1)
-      if !(front_left.piece == "")
-        available_moves << [row+move_inc, col-1] if front_left.piece.color != figure.color
-      end
-    end
-
-    #pair right with col+1, left with col-1 #FIX
     #en passant
-    if (col+1).between?(0,7) #repated with above, fix it up later
-      right = board_accessor(row, col+1)
-      if !(right.piece == "")
-        if right.piece.class.name == "Pawn" && right.piece.color != figure.color
-          if right.piece.double_move.true?
-            available_moves << [row, col+1]
-          end
-        end
-      end
-    end
-
-    if (col-1).between?(0,7) #repated with above, fix it up later
-      left = board_accessor(row, col-1)
-      if !(left.piece == "")
-        if left.piece.class.name == "Pawn" && left.piece.color != figure.color
-          if left.piece.double_move.true?
-            available_moves << [row, col-1]
-          end
+    [1,-1].each do |option|
+      if (col+option).between?(0,7)
+        pot = board_accessor(row, col+option).piece
+        if pot != "" && pot.class.name == "Board::Pawn"
+          available_moves << [row+move_inc, col+option] if pot.color != figure.color && pot.double_move == false
         end
       end
     end
@@ -404,7 +370,9 @@ class Board
   def initialize_board_with_pieces #done
     #knight, pawn and the likes arent used, remembe rto delete them if they are not neccessary later FIX
     #testing
-    @board[4][4].piece = knight = Knight.new(@board[4][4], "♘", "white")
+    @board[4][4].piece = knight = Queen.new(@board[4][4], "♕", "white" )
+    @board[4][3].piece = black_pawn = Queen.new(@board[4][3], "♛", "black")
+
     #white
     @board[1].each_with_index {|square, ind| @board[1][ind].piece = pawn = Pawn.new(square, "♙", "white") }
 
@@ -415,8 +383,8 @@ class Board
     @board[0][1].piece = left_knight = Knight.new(@board[0][1], "♘", "white")
     @board[0][6].piece = right_knight = Knight.new(@board[0][6], "♘", "white")
 
-    @board[0][2].piece = right_bishop = Knight.new(@board[0][2], "♗", "white")
-    @board[0][5].piece = left_bishop = Knight.new(@board[0][5], "♗", "white")
+    @board[0][2].piece = right_bishop = Bishop.new(@board[0][2], "♗", "white")
+    @board[0][5].piece = left_bishop = Bishop.new(@board[0][5], "♗", "white")
 
     @board[0][3].piece = queen = Queen.new(@board[0][3], "♕", "white" )
     @board[0][4].piece = king = King.new(@board[0][4], "♔", 'white')
@@ -430,8 +398,8 @@ class Board
     @board[7][1].piece = left_black_knight = Knight.new(@board[7][1], "♞", "black")
     @board[7][6].piece = right_black_knight = Knight.new(@board[7][6], "♞", "black")
 
-    @board[7][2].piece = right_black_bishop = Knight.new(@board[7][2], "♝", "black")
-    @board[7][5].piece = left_black_bishop = Knight.new(@board[7][5], "♝", "black")
+    @board[7][2].piece = right_black_bishop = Bishop.new(@board[7][2], "♝", "black")
+    @board[7][5].piece = left_black_bishop = Bishop.new(@board[7][5], "♝", "black")
 
     @board[7][3].piece = black_queen = Queen.new(@board[7][3], "♛", "black" )
     @board[7][4].piece = black_king = King.new(@board[7][4], "♚", 'black')
@@ -444,11 +412,9 @@ board.generate_square_coordinates
 board.initialize_board_with_pieces
 board.print_board
 puts print board.generate_moves_pawn([1,1])
-puts print board.generate_moves_knight([4,4])
+puts print board.generate_moves_queen([7,3])
 
-board.move
-board.print_board
-board.move
-board.print_board
-board.move
-board.print_board
+10.times do
+  board.move
+  board.print_board
+end
