@@ -68,26 +68,63 @@ class Board
     end
   end
 
-  def move#(move = gets.chomp) #b-acc.piece.available_moves
-    puts "Insert the location of the piece you want to move: "
-    current = gets.chomp
-    puts "Here are your available moves, pick one (CANCEL to cancel): "
+  def move
+    begin
+      puts "Insert location of piece and where you want it to move: (ex a2a4)"
+      move = gets.chomp
+      move_validity_check(move) #potential error #1
 
-    current = translate_move(current) #ex. from a1 to [0,0]
-    current_piece = board_accessor(current[0], current[1]).piece
+      current_position = translate_move(move[0..1])
+      current = board_accessor(current_position[0], current_position[1])
+      future_position = available_moves_check(move, current_position, current.piece)
+      #potential error #2
+    rescue
+      puts "", "Move INVALID, try again!", ""
+      retry
+    end
 
-    generate_moves(current)
+    castling(move, current.piece)
 
-    puts print current_piece.available_moves.map {|move| translate_move(move)}.join(" ")
-    move = gets.chomp
-    return if move == "CANCEL" #remember to raise error here if condition FIX
-    future = translate_move(move) if current_piece.available_moves.any? {|mov| mov == translate_move(move)}
-    future_position = board_accessor(future[0], future[1])
+    future = board_accessor(future_position[0], future_position[1])
 
-    future_position.piece = current_piece
-    current_piece.position = future_position
+    future.piece = current.piece
+    current.piece.position = future
+    current.piece = ""
+  end
 
-    board_accessor(current[0], current[1]).piece = ""
+  #helper method
+  def move_validity_check(move)
+    raise ArgumentError if move.size != 4 || !(move[0] =~ /[a-h]/ && move[2] =~ /[a-h]/) || !(move[1] =~ /[1-8]/ && move[3] =~ /[1-8]/)
+  end
+
+  #helper method
+  def available_moves_check(move, current_position, current_piece)
+    generate_moves(current_position)
+    if current_piece.available_moves.any? {|mov| mov == translate_move(move[2..3])}
+      return translate_move(move[2..3])
+    else
+      raise ArgumentError
+    end
+  end
+
+  #helper method
+  def castle_move(move)
+    current_position, future_position = translate_move(move[0..1]), translate_move(move[2..3])
+    current = board_accessor(current_position[0], current_position[1])
+    future = board_accessor(future_position[0], future_position[1])
+
+    future.piece = current.piece
+    current.piece.position = future
+    current.piece = ""
+  end
+
+  #helper method
+  def castling(move, current_piece)
+    #king => rook
+    castling_moves = {"e1g1" => "h1f1", "e1c1" => "a1d1", "e8g8" => "h8f8", "e8c8" => "a8d8"}
+    if current_piece.class.name == "Board::King" && castling_moves.keys.any? {|pot| pot == move}
+      castle_move(castling_moves[move])
+    end
   end
 
   def generate_square_coordinates #done
@@ -144,6 +181,7 @@ class Board
   end
 
   def global_under_attack
+  end
 
 
   def generate_moves(figure) #done
@@ -393,8 +431,10 @@ class Board
 
   def print_board #done
     h_index = 8
+    puts ""
+    puts "  a b c d e f g h"
     @board.reverse.each do |row|
-      puts "#{h_index} #{row.map { |square| square.piece == "" ? "_" : square.piece.symbol }.join(" ")}"
+      puts "#{h_index} #{row.map { |square| square.piece == "" ? "☐" : square.piece.symbol }.join(" ")} #{h_index}"
       h_index -= 1
     end
     puts "  a b c d e f g h"
@@ -435,12 +475,11 @@ class Board
 end
 
 board = Board.new
-board.print_board
 board.generate_square_coordinates
 board.initialize_board_with_pieces
 board.print_board
 
-10.times do
+50.times do
   board.move
   board.print_board
   #worksworksss
