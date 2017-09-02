@@ -1,7 +1,7 @@
 class Board
   attr_accessor :player_one, :player_two, :board
 
-  def initialize(player_one="White", player_two="Black")
+  def initialize(player_one="white", player_two="black")
     @player_one = player_one
     @player_two = player_two
 
@@ -9,12 +9,13 @@ class Board
   end
 
   class Square
-    attr_accessor :coordinates, :piece, :under_attack
+    attr_accessor :coordinates, :piece, :attacked_by_black, :attacked_by_white
 
     def initialize
       @coordinates = []
       @piece = ""
-      @under_attack = false
+      @attacked_by_white = false
+      @attacked_by_black = false
     end
   end
 
@@ -66,6 +67,18 @@ class Board
       super(position, symbol, color, moved, available_moves)
       @double_move = double_move
     end
+  end
+
+  def board_accessor(row, col) #done
+    @board[row][col]
+  end
+
+  def player_on_turn #done
+    @player_one
+  end
+
+  def switch_players #done
+    @player_one, @player_two = @player_two, @player_one
   end
 
   def move
@@ -146,10 +159,6 @@ class Board
     end
   end
 
-  def board_accessor(row, col) #done
-    @board[row][col]
-  end
-
   def find_king(color)
     king = ""
     @board.each do |row|
@@ -162,8 +171,12 @@ class Board
   end
 
   #finally finds the king...now onto doing the famous global method
-  def check_check(color)
-    return true if find_king(color).under_attack == true
+  def check_check
+    if player_on_turn == "white" #player one is player on turn
+      return true if find_king("white").attacked_by_black == true
+    elsif player_on_turn == "black"
+      return true if find_king("black").attacked_by_white == true
+    end
   end
 
   def checkmate_check(color)
@@ -180,7 +193,22 @@ class Board
     #NOT under attack, cant move without entering a check, cant be saved
   end
 
-  def global_under_attack
+  def global_under_attack_check
+    @board.each do |row|
+      row.each do |square|
+        #first reset the old situation
+        square.attacked_by_white == false
+        square.attacked_by_black == false
+        #then set the new situation
+        if square.piece != ""
+          under_attack = generate_moves(square.coordinates)
+          under_attack.each do |crds| #coordinates
+            board_accessor(crds[0], crds[1]).attacked_by_white = true if square.piece.color == "white"
+            board_accessor(crds[0], crds[1]).attacked_by_black = true if square.piece.color == "black"
+          end
+        end
+      end
+    end
   end
 
 
@@ -213,9 +241,17 @@ class Board
     king_move_pairs.each do |pair|
       if ((row+pair[0]).between?(0,7) && (col+pair[1]).between?(0,7))
         board_pos = board_accessor(row+pair[0], col+pair[1])
-        if board_pos.under_attack == false
-          if board_pos.piece == "" || board_pos.piece.color != king.color #OR was in elsif problem alert
-            available_moves << [row+pair[0], col+pair[1]]
+        if player_on_turn == "white" #more elegant solution for this since they repeat? FIX
+          if board_pos.attacked_by_black == false
+            if board_pos.piece == "" || board_pos.piece.color != king.color
+              available_moves << [row+pair[0], col+pair[1]]
+            end
+          end
+        elsif player_on_turn == "black"
+          if board_pos.attacked_by_white == false
+            if board_pos.piece == "" || board_pos.piece.color != king.color
+              available_moves << [row+pair[0], col+pair[1]]
+            end
           end
         end
       end
@@ -240,7 +276,7 @@ class Board
 
           path = @board[row][path_start..path_end]
 
-          if path.first(3).all? {|square| square.under_attack == false}
+          if path.first(3).all? { |square| player_on_turn == "white" ? square.attacked_by_black == false : square.attacked_by_white == false }
             if path[1..2].all? {|square| square.piece == ""}
               available_moves << [row, col+increment_value]
             end
@@ -478,10 +514,13 @@ board = Board.new
 board.generate_square_coordinates
 board.initialize_board_with_pieces
 board.print_board
+board.global_under_attack_check
 
 50.times do
   board.move
   board.print_board
+  board.switch_players
+  board.global_under_attack_check
   #worksworksss
-  puts "CHECK" if board.check_check("black")==true
+  #puts "CHECK" if board.check_check("black")==true
 end
