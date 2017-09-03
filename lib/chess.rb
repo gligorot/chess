@@ -194,12 +194,11 @@ class Board
   end
 
   def global_under_attack_check
+    #first reset the board
+    reset_board_attack
+    #then set the new situation
     @board.each do |row|
       row.each do |square|
-        #first reset the old situation
-        square.attacked_by_white == false
-        square.attacked_by_black == false
-        #then set the new situation
         if square.piece != ""
           under_attack = generate_moves(square.coordinates)
           under_attack.each do |crds| #coordinates
@@ -211,27 +210,38 @@ class Board
     end
   end
 
-
-  def generate_moves(figure) #done
-    piece = board_accessor(figure[0], figure[1]).piece
-    case piece.class.name
-    when "Board::King"
-      piece.available_moves = generate_moves_king(figure)
-    when "Board::Queen"
-      piece.available_moves = generate_moves_queen(figure)
-    when "Board::Rook"
-      piece.available_moves = generate_moves_rook(figure)
-    when "Board::Bishop"
-      piece.available_moves = generate_moves_bishop(figure)
-    when "Board::Knight"
-      piece.available_moves = generate_moves_knight(figure)
-    when "Board::Pawn"
-      piece.available_moves = generate_moves_pawn(figure)
+  def reset_board_attack
+    @board.each do |row|
+      row.each do |square|
+        square.attacked_by_white = false
+        square.attacked_by_black = false
+      end
     end
   end
 
 
-  def generate_moves_king(king)
+  def generate_moves(figure, attack_check=false) #done
+    #ruby i fucking love you
+    attack_check = true if caller_locations(1,1)[0].label.split(" ").last == "global_under_attack_check"
+    piece = board_accessor(figure[0], figure[1]).piece
+    case piece.class.name
+    when "Board::King"
+      piece.available_moves = generate_moves_king(figure, attack_check)
+    when "Board::Queen"
+      piece.available_moves = generate_moves_queen(figure, attack_check)
+    when "Board::Rook"
+      piece.available_moves = generate_moves_rook(figure, attack_check)
+    when "Board::Bishop"
+      piece.available_moves = generate_moves_bishop(figure, attack_check)
+    when "Board::Knight"
+      piece.available_moves = generate_moves_knight(figure, attack_check)
+    when "Board::Pawn"
+      piece.available_moves = generate_moves_pawn(figure, attack_check)
+    end
+  end
+
+
+  def generate_moves_king(king, attack_check)
     king = board_accessor(king[0], king[1]).piece
     row, col = king.position.coordinates
     available_moves = []
@@ -243,21 +253,25 @@ class Board
         board_pos = board_accessor(row+pair[0], col+pair[1])
         if player_on_turn == "white" #more elegant solution for this since they repeat? FIX
           if board_pos.attacked_by_black == false
-            if board_pos.piece == "" || board_pos.piece.color != king.color
+            if attack_check == true
               available_moves << [row+pair[0], col+pair[1]]
+            else
+              available_moves << [row+pair[0], col+pair[1]] if board_pos.piece == "" || board_pos.piece.color != king.color
             end
           end
         elsif player_on_turn == "black"
           if board_pos.attacked_by_white == false
-            if board_pos.piece == "" || board_pos.piece.color != king.color
+            if attack_check == true
               available_moves << [row+pair[0], col+pair[1]]
+            else
+              available_moves << [row+pair[0], col+pair[1]] if board_pos.piece == "" || board_pos.piece.color != king.color
             end
           end
         end
       end
     end
 
-    #castling  #will rework it as a submethod of move
+    #castling
     if king.moved == false
       first_rook = board_accessor(row, 0).piece
       second_rook = board_accessor(row, 7).piece
@@ -290,7 +304,7 @@ class Board
 
 
 
-  def generate_moves_queen(queen)
+  def generate_moves_queen(queen, attack_check)
     queen = board_accessor(queen[0], queen[1]).piece
     row, col = queen.position.coordinates
     available_moves = []
@@ -332,7 +346,11 @@ class Board
         if square.piece == ""
           available_moves << square.coordinates
         else
-          available_moves << square.coordinates if square.piece.color != queen.color
+          if attack_check == true
+            available_moves << square.coordinates
+          else
+            available_moves << square.coordinates if square.piece.color != queen.color
+          end
           break
         end
       end
@@ -343,7 +361,7 @@ class Board
 
 
 
-  def generate_moves_rook(rook)
+  def generate_moves_rook(rook, attack_check)
     rook = board_accessor(rook[0], rook[1]).piece
     row, col = rook.position.coordinates
     available_moves = []
@@ -368,7 +386,11 @@ class Board
         if square.piece == ""
           available_moves << square.coordinates
         else
-          available_moves << square.coordinates if square.piece.color != rook.color
+          if attack_check == true
+            available_moves << square.coordinates
+          else
+            available_moves << square.coordinates if square.piece.color != rook.color
+          end
           break
         end
       end
@@ -377,7 +399,7 @@ class Board
   end
 
 
-  def generate_moves_bishop(bishop)
+  def generate_moves_bishop(bishop, attack_check)
     bishop = board_accessor(bishop[0], bishop[1]).piece
     row, col = bishop.position.coordinates
     available_moves = []
@@ -401,7 +423,11 @@ class Board
         if square.piece == ""
           available_moves << square.coordinates
         else
-          available_moves << square.coordinates if square.piece.color != bishop.color
+          if attack_check == true
+            available_moves << square.coordinates
+          else
+            available_moves << square.coordinates if square.piece.color != bishop.color
+          end
           break
         end
       end
@@ -409,7 +435,7 @@ class Board
     available_moves
   end
 
-  def generate_moves_knight(knight)
+  def generate_moves_knight(knight, attack_check)
     knight = board_accessor(knight[0], knight[1]).piece
     row, col = knight.position.coordinates
     available_moves = []
@@ -423,7 +449,11 @@ class Board
         if square.piece == ""
           available_moves << square.coordinates
         else
-          available_moves << square.coordinates if square.piece.color != knight.color
+          if attack_check == true
+            available_moves << square.coordinates
+          else
+            available_moves << square.coordinates if square.piece.color != knight.color
+          end
         end
       end
     end
@@ -432,7 +462,7 @@ class Board
 
 
 
-  def generate_moves_pawn(pawn)
+  def generate_moves_pawn(pawn, attack_check)
     pawn = board_accessor(pawn[0], pawn[1]).piece
     row, col = pawn.position.coordinates
     available_moves = []
@@ -441,9 +471,11 @@ class Board
     move_inc= pawn.color=="white" ? 1 : -1
 
     #normal move
-    available_moves << [row+move_inc, col] if (row+move_inc).between?(0,7) && board_accessor(row+move_inc, col).piece == "" #fix with promotion in mid
-    #start position double move
-    available_moves << [row+(move_inc*2), col] if pawn.moved == false && board_accessor(row+move_inc, col).piece == "" && board_accessor(row+(move_inc*2), col).piece == ""
+    if attack_check == false
+      available_moves << [row+move_inc, col] if (row+move_inc).between?(0,7) && board_accessor(row+move_inc, col).piece == "" #fix with promotion in mid
+      #start position double move
+      available_moves << [row+(move_inc*2), col] if pawn.moved == false && board_accessor(row+move_inc, col).piece == "" && board_accessor(row+(move_inc*2), col).piece == ""
+    end
 
     #normal taking
     [1,-1].each do |option|
@@ -475,6 +507,37 @@ class Board
     end
     puts "  a b c d e f g h"
   end
+
+  def experimental_print_board
+    h_index = 8
+    puts ""
+    puts "  a b c d e f g h"
+    @board.reverse.each do |row|
+      new_row = []
+      new_row << h_index
+
+       h_index % 2 == 0 ? start_white = false : start_white = true
+
+      row.each do |square|
+        if square.piece == ""
+          if start_white == true
+            new_row << "□" #□ ☐
+          else
+            new_row << "■" #
+          end
+        else
+          new_row << square.piece.symbol
+        end
+        start_white == true ? start_white = false : start_white = true
+      end
+
+      new_row << h_index
+      h_index -= 1
+      puts new_row.join(" ")
+    end
+    puts "  a b c d e f g h"
+  end
+
 
   def initialize_board_with_pieces #done
     #white
@@ -518,8 +581,8 @@ board.global_under_attack_check
 
 50.times do
   board.move
-  board.print_board
-  board.switch_players
+  board.experimental_print_board
+  #board.switch_playerse2
   board.global_under_attack_check
   #worksworksss
   #puts "CHECK" if board.check_check("black")==true
