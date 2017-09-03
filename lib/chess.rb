@@ -84,7 +84,9 @@ class Board
   def move
     begin
       puts "Insert location of piece and where you want it to move: (ex a2a4)"
+      puts "Alternatively DRAW to offer a draw"
       move = gets.chomp
+      draw_offer_check(move) #find a way to stop it later FIX/problem alert
       move_validity_check(move) #potential error #1
 
       current_position = translate_move(move[0..1])
@@ -103,6 +105,27 @@ class Board
     future.piece = current.piece
     current.piece.position = future
     current.piece = ""
+  end
+
+  #helper method
+  def draw_offer_check(draw_offer)
+    if draw_offer == "DRAW"
+      begin
+        puts "You have been offered a draw, return DRAW if you accept or an empty input if you don't :"
+        draw_answer = gets.chomp
+        if draw_answer == "DRAW"
+          puts "You have agreed to a draw, the game is over without a winner."
+          #find a way to stop the game later FIX/problem alert
+        elsif draw_answer.empty?
+          puts "You have rejected the draw offer, the game will proceed."
+        else
+          raise ArgumentError
+        end
+      rescue
+        puts "", "DRAW or empty input please", ""
+        retry
+      end
+    end
   end
 
   #helper method
@@ -181,6 +204,17 @@ class Board
 
   def checkmate_check(color)
     king = find_king(color)
+    if check_check == true
+      king_attacker = global_under_attack_check
+      king_attacker_coordinates = king_attacker.position.coordinates
+      if king_attacker.class.name == "Board::Knight" || king_attacker.class.name == "Board::Pawn"
+        #has to be taken
+      else
+        #can be taken or path can be blocked
+        generate_moves(king_attacker_coordinates)
+      end
+    end
+  end
 
     #under attack, cant move without entering a check(everything around under attack) AND cant be saved
     #fk it i'll need to work quite a bit on this
@@ -194,6 +228,8 @@ class Board
   end
 
   def global_under_attack_check
+    #for king check case
+    king_attacker = ""
     #first reset the board
     reset_board_attack
     #then set the new situation
@@ -202,12 +238,15 @@ class Board
         if square.piece != ""
           under_attack = generate_moves(square.coordinates)
           under_attack.each do |crds| #coordinates
-            board_accessor(crds[0], crds[1]).attacked_by_white = true if square.piece.color == "white"
-            board_accessor(crds[0], crds[1]).attacked_by_black = true if square.piece.color == "black"
+            current_piece = board_accessor(crds[0], crds[1])
+            current_piece.attacked_by_white = true if square.piece.color == "white"
+            current_piece.attacked_by_black = true if square.piece.color == "black"
+            king_attacker = square.piece if current.piece.class.name == "Board::King" && current_piece.color != square.color
           end
         end
       end
     end
+    return king_attacker unless king_attacker.empty?
   end
 
   def reset_board_attack
@@ -515,16 +554,11 @@ class Board
     @board.reverse.each do |row|
       new_row = []
       new_row << h_index
-
        h_index % 2 == 0 ? start_white = false : start_white = true
 
       row.each do |square|
         if square.piece == ""
-          if start_white == true
-            new_row << "□" #□ ☐
-          else
-            new_row << "■" #
-          end
+          start_white == true ? new_row << "■" : new_row << "□"
         else
           new_row << square.piece.symbol
         end
@@ -576,14 +610,13 @@ end
 board = Board.new
 board.generate_square_coordinates
 board.initialize_board_with_pieces
-board.print_board
+board.experimental_print_board
 board.global_under_attack_check
 
 50.times do
   board.move
   board.experimental_print_board
-  #board.switch_playerse2
+  #board.switch_players
   board.global_under_attack_check
-  #worksworksss
   #puts "CHECK" if board.check_check("black")==true
 end
