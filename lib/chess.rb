@@ -99,7 +99,9 @@ class Board
     end
 
     castling(move, current.piece)
+    pawn_promotion(move, current)
 
+    #future square
     future = board_accessor(future_position[0], future_position[1])
 
     future.piece = current.piece
@@ -141,6 +143,59 @@ class Board
     else
       raise ArgumentError
     end
+  end
+
+  #meant to be incorporated in move
+  def pawn_promotion(move, current)
+    if current.piece.class.name == "Board::Pawn"
+      if current.piece.color == "white"
+        if move[-1].to_i == 8
+          promotion_piece = promotion_validity_check
+
+          case promotion_piece
+          when "Q"
+            current.piece = Queen.new(current, "♕", "white" )
+          when "R"
+            current.piece= Rook.new(current, "♖", "white")
+          when "B"
+            current.piece = Bishop.new(current, "♗", "white")
+          when "N"
+            current.piece = Knight.new(current, "♘", "white")
+          end
+        end
+      end
+
+      if current.piece.color == "black"
+        if move[-1].to_i == 1
+          promotion_piece = promotion_validity_check
+
+          case promotion_piece
+          when "Q"
+            current.piece = Queen.new(current, "♛", "black" )
+          when "R"
+            current.piece= Rook.new(current, "♜", "black")
+          when "B"
+            current.piece = Bishop.new(current, "♝", "black")
+          when "N"
+            current.piece = Knight.new(current, "♞", "black")
+          end
+        end
+      end
+
+    end
+  end
+
+  #helper method
+  def promotion_validity_check
+    begin
+      puts "Enter Q, R, B or N to promote your pawn: "
+      promotion_piece = gets.chomp
+      raise ArgumentError unless ["Q", "R", "B", "N"].any?{|piece| piece == promotion_piece}
+    rescue
+      puts "", "Request INVALID, try again!", ""
+      retry
+    end
+    promotion_piece
   end
 
   #helper method
@@ -498,7 +553,6 @@ class Board
         end
       end
     end
-
     available_moves
   end
 
