@@ -202,10 +202,10 @@ class Board
   end
 
   #under attack, cant move without entering a check(everything around under attack) AND cant be saved
-  def checkmate_check(color)
-    king_square = find_king(color)
+  def checkmate_check(king_color)
+    king_square = find_king(king_color)
     if check_check == true # make a king can/t move method here]
-      puts "#{color.capitalize} king IS under check"
+      puts "#{king_color.capitalize} king is under check"
 
       king_attacker = global_under_attack_check #find attacker
       king_attacker_coordinates = king_attacker.position.coordinates
@@ -218,7 +218,7 @@ class Board
         attacker_path << king_attacker_coordinates
         #has to be taken #IF KING CANT MOVE
         if king_moves.empty?
-          counter_attacks = available_moves_under_check(attacker_path, color)
+          counter_attacks = available_moves_under_check(attacker_path, king_color)
           if counter_attacks.empty?
             return true
           else
@@ -229,11 +229,9 @@ class Board
         end
       else
         attacker_path = find_attacker_path(king_square, king_attacker)
-        #can be taken or path can be blocked #IF KING CANT MOVE
-        #generate_moves(king_attacker_coordinates) #idk what this was for, remove later if not needed
 
         if king_moves.empty?
-          counter_attacks = available_moves_under_check(attacker_path, color)
+          counter_attacks = available_moves_under_check(attacker_path, king_color)
           if counter_attacks.empty? && king
             return true
           else
@@ -242,8 +240,6 @@ class Board
           end
         end
       end
-    else
-      puts "#{color.capitalize} king is not under check"
     end
   end
 
@@ -318,14 +314,20 @@ class Board
 
   end
 
-
-
-
-
-  def stalemate_check(color)
-    king = find_king(color)
-
-    #NOT under attack, cant move without entering a check, cant be saved
+  def stalemate_check(king_color)
+    king_square = find_king(king_color)
+    king_moves = generate_moves(king_square.coordinates)
+    global_available_moves = []
+    if check_check == false
+      if king_moves.empty? # this is not needed as gam checks everything
+        @board.each do |row|
+          row.each  do |square|
+            global_available_moves << generate_moves(square.coordinates) if square.piece != "" && square.piece.color == king_color
+          end
+        end
+      end
+    end
+    return true if global_available_moves.empty?
   end
 
   def global_under_attack_check
