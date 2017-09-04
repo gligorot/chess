@@ -189,7 +189,6 @@ class Board
         king = square if square.piece != "" && square.piece.class.name == "Board::King" && square.piece.color == color
       end
     end
-
     king
   end
 
@@ -202,24 +201,126 @@ class Board
     end
   end
 
+  #under attack, cant move without entering a check(everything around under attack) AND cant be saved
   def checkmate_check(color)
-    king = find_king(color)
-    if check_check == true
-      king_attacker = global_under_attack_check
+    king_square = find_king(color)
+    if check_check == true # make a king can/t move method here]
+      puts "#{color.capitalize} king IS under check"
+
+      king_attacker = global_under_attack_check #find attacker
       king_attacker_coordinates = king_attacker.position.coordinates
+      king_moves = generate_moves(king_square.coordinates)
+      attacker_path = []
+
+      #check if there are pieces that can take the pawn/knight, #if none its a checkmate
+      #or just print out available moves unde rcheck and check that if empty >checkmate
       if king_attacker.class.name == "Board::Knight" || king_attacker.class.name == "Board::Pawn"
-        #has to be taken
+        attacker_path << king_attacker_coordinates
+        #has to be taken #IF KING CANT MOVE
+        if king_moves.empty?
+          counter_attacks = available_moves_under_check(attacker_path, color)
+          if counter_attacks.empty?
+            return true
+          else
+            puts "Your available moves are:"
+            puts print counter_attacks.map {|move| translate_move(move)}.join(" ")
+            #also limit the next move to these somehow
+          end
+        end
       else
-        #can be taken or path can be blocked
-        generate_moves(king_attacker_coordinates)
+        attacker_path = find_attacker_path(king_square, king_attacker)
+        #can be taken or path can be blocked #IF KING CANT MOVE
+        #generate_moves(king_attacker_coordinates) #idk what this was for, remove later if not needed
+
+        if king_moves.empty?
+          counter_attacks = available_moves_under_check(attacker_path, color)
+          if counter_attacks.empty? && king
+            return true
+          else
+            puts "Your available moves are:"
+            puts print counter_attacks.map {|move| translate_move(move)}.join(" ")
+          end
+        end
       end
+    else
+      puts "#{color.capitalize} king is not under check"
     end
   end
 
-    #under attack, cant move without entering a check(everything around under attack) AND cant be saved
-    #fk it i'll need to work quite a bit on this
+  #helper method
+  #ONLY FOR WHEN THE KING CANT MOVE
+  def available_moves_under_check(attacker_path, king_color)
+    counter_attacks = []
+    @board.each do |row|
+      row.each do |square|
+        if square.piece != "" && square.piece.color == king_color
+          defend_moves = generate_moves(square.coordinates)
+          defend_moves.each do |crds| #coordinates
+            counter_attacks << crds if attacker_path.any? {|point| point == crds}
+          end
+        end
+      end
+    end
+    counter_attacks
+  end
+
+
+  #helper method
+  def find_attacker_path(king, king_attacker)
+    #90 % of the code repeats from gen_moves_queen, find a way to DRY
+    row, col = king.coordinates
+    king_attacker_coordinates = king_attacker.position.coordinates
+    all_directions = []
+
+    #horizontal
+    left = board_accessor(row, 0...col)
+    right = board_accessor(row, col+1..8)
+    all_directions << left.reverse << right
+    potential = []
+
+    #vertical
+    top, bottom = [], []
+    8.times do |row_index|
+      square = board_accessor(row_index, col)
+      if row_index < row
+        top << square
+      elsif row_index > row
+        bottom << square
+      end
+    end
+    all_directions << top.reverse << bottom
+
+    #diagonals
+    diagonals = [[1,1],[1,-1],[-1,-1],[-1,1]]
+
+    diagonals.each do |direction|
+      row_inc, col_inc = direction
+      diagonal = []
+      while (row+row_inc).between?(0,7) && (col+col_inc).between?(0,7)
+        diagonal << board_accessor(row+row_inc, col+col_inc)
+        row_inc > 0 ? row_inc+=1 : row_inc-=1 #increases in each counter's specific direction
+        col_inc > 0 ? col_inc+=1 : col_inc-=1
+      end
+      all_directions << diagonal
+    end
+
+    all_directions.each do |direction|
+      potential = direction if direction.any? {|sqr| sqr.coordinates == king_attacker_coordinates}
+    end
+
+    #shaves off unneeded path "behind" the attacker
+    until potential[-1].coordinates == king_attacker_coordinates
+      potential.pop
+    end
+
+    #final path king > attacker
+    potential.map{|point| point.coordinates}
 
   end
+
+
+
+
 
   def stalemate_check(color)
     king = find_king(color)
@@ -238,15 +339,15 @@ class Board
         if square.piece != ""
           under_attack = generate_moves(square.coordinates)
           under_attack.each do |crds| #coordinates
-            current_piece = board_accessor(crds[0], crds[1])
-            current_piece.attacked_by_white = true if square.piece.color == "white"
-            current_piece.attacked_by_black = true if square.piece.color == "black"
-            king_attacker = square.piece if current.piece.class.name == "Board::King" && current_piece.color != square.color
+            current_square = board_accessor(crds[0], crds[1])
+            current_square.attacked_by_white = true if square.piece.color == "white"
+            current_square.attacked_by_black = true if square.piece.color == "black"
+            king_attacker = square.piece if current_square.piece.class.name == "Board::King" && current_square.piece.color != square.piece.color
           end
         end
       end
     end
-    return king_attacker unless king_attacker.empty?
+    return king_attacker unless king_attacker == false
   end
 
   def reset_board_attack
@@ -358,6 +459,7 @@ class Board
     top, bottom = [], []
     8.times do |row_index|
       square = board_accessor(row_index, col)
+      #has to stay like this bc in case of == it shouldn't go anywhere
       if row_index < row
         top << square
       elsif row_index > row
@@ -367,9 +469,9 @@ class Board
     all_directions << top.reverse << bottom
 
     #diagonals
-    directions = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
+    diagonals = [[1,1],[1,-1],[-1,-1],[-1,1]] #++, +-, -, -+
 
-    directions.each do |direction|
+    diagonals.each do |direction|
       row_inc, col_inc = direction
       diagonal = []
       while (row+row_inc).between?(0,7) && (col+col_inc).between?(0,7)
@@ -574,6 +676,7 @@ class Board
 
 
   def initialize_board_with_pieces #done
+
     #white
     @board[1].each_with_index {|square, ind| @board[1][ind].piece = Pawn.new(square, "♙", "white") }
 
@@ -614,9 +717,9 @@ board.experimental_print_board
 board.global_under_attack_check
 
 50.times do
+  board.checkmate_check(board.player_on_turn)
   board.move
   board.experimental_print_board
   #board.switch_players
   board.global_under_attack_check
-  #puts "CHECK" if board.check_check("black")==true
 end
