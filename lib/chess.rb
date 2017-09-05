@@ -252,6 +252,7 @@ class Board
     future.piece = current.piece
     current.piece.position = future
     current.piece = ""
+    future.piece.moved = true
   end
 
   #helper method
@@ -431,6 +432,7 @@ class Board
   end
 
   def global_under_attack_check
+    theory = true if caller_locations(1,1)[0].label.split(" ").last == "theoretical_check_screen"
     #for king check case
     king_attacker = ""
     #first reset the board
@@ -439,7 +441,7 @@ class Board
     @board.each do |row|
       row.each do |square|
         if square.piece != ""
-          under_attack = generate_moves(square.coordinates)
+          under_attack = generate_moves(square.coordinates, false, theory)
           under_attack.each do |crds| #coordinates
             current_square = board_accessor(crds[0], crds[1])
             current_square.attacked_by_white = true if square.piece.color == "white"
@@ -452,6 +454,8 @@ class Board
     return king_attacker unless king_attacker == false
   end
 
+
+  #helper method
   def reset_board_attack
     @board.each do |row|
       row.each do |square|
@@ -461,29 +465,60 @@ class Board
     end
   end
 
+  #helper method #the fucker doesnt work fuck
+  #QUAZI fixed in move, still needs work
+  def theoretical_check_screen(piece, available_moves)
+    row, col = piece.position.coordinates
+    current = piece.position
+    current_position = [] << row << col
+    bad_moves = []
 
-  def generate_moves(figure, attack_check=false) #done
+    available_moves.each do |move|
+      #this guy is changing every move-VARIABLE
+      future = board_accessor(move[0], move[1])
+      current_copy = current.piece
+      future_copy = future.piece
+
+      #test move
+      future.piece = current.piece
+      current.piece.position = future
+      current.piece = ""
+
+      global_under_attack_check
+
+      bad_moves << move if check_check == true
+
+      #reverse
+      current.piece = current_copy
+      current.piece.position = current
+      future.piece = future_copy
+    end
+    available_moves - bad_moves
+  end
+
+
+  def generate_moves(figure, attack_check=false, theory=false) #done
     #ruby i fucking love you
     attack_check = true if caller_locations(1,1)[0].label.split(" ").last == "global_under_attack_check"
     piece = board_accessor(figure[0], figure[1]).piece
     case piece.class.name
     when "Board::King"
-      piece.available_moves = generate_moves_king(figure, attack_check)
+      piece.available_moves = generate_moves_king(figure, attack_check, theory)
     when "Board::Queen"
-      piece.available_moves = generate_moves_queen(figure, attack_check)
+      piece.available_moves = generate_moves_queen(figure, attack_check, theory)
     when "Board::Rook"
-      piece.available_moves = generate_moves_rook(figure, attack_check)
+      piece.available_moves = generate_moves_rook(figure, attack_check, theory)
     when "Board::Bishop"
-      piece.available_moves = generate_moves_bishop(figure, attack_check)
+      piece.available_moves = generate_moves_bishop(figure, attack_check, theory)
     when "Board::Knight"
-      piece.available_moves = generate_moves_knight(figure, attack_check)
+      piece.available_moves = generate_moves_knight(figure, attack_check, theory)
     when "Board::Pawn"
-      piece.available_moves = generate_moves_pawn(figure, attack_check)
+      piece.available_moves = generate_moves_pawn(figure, attack_check, theory)
     end
   end
 
 
-  def generate_moves_king(king, attack_check)
+  def generate_moves_king(king, attack_check, theory)
     king = board_accessor(king[0], king[1]).piece
     row, col = king.position.coordinates
     available_moves = []
@@ -546,7 +581,7 @@ class Board
 
 
 
-  def generate_moves_queen(queen, attack_check)
+  def generate_moves_queen(queen, attack_check, theory)
     queen = board_accessor(queen[0], queen[1]).piece
     row, col = queen.position.coordinates
     available_moves = []
@@ -598,12 +633,12 @@ class Board
         end
       end
     end
-    available_moves
+    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
   end
 
 
 
-  def generate_moves_rook(rook, attack_check)
+  def generate_moves_rook(rook, attack_check, theory)
     rook = board_accessor(rook[0], rook[1]).piece
     row, col = rook.position.coordinates
     available_moves = []
@@ -637,11 +672,11 @@ class Board
         end
       end
     end
-    available_moves
+    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
   end
 
 
-  def generate_moves_bishop(bishop, attack_check)
+  def generate_moves_bishop(bishop, attack_check, theory)
     bishop = board_accessor(bishop[0], bishop[1]).piece
     row, col = bishop.position.coordinates
     available_moves = []
@@ -674,10 +709,10 @@ class Board
         end
       end
     end
-    available_moves
+    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
   end
 
-  def generate_moves_knight(knight, attack_check)
+  def generate_moves_knight(knight, attack_check, theory)
     knight = board_accessor(knight[0], knight[1]).piece
     row, col = knight.position.coordinates
     available_moves = []
@@ -699,12 +734,12 @@ class Board
         end
       end
     end
-    available_moves
+    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
   end
 
 
 
-  def generate_moves_pawn(pawn, attack_check)
+  def generate_moves_pawn(pawn, attack_check, theory)
     pawn = board_accessor(pawn[0], pawn[1]).piece
     row, col = pawn.position.coordinates
     available_moves = []
@@ -735,7 +770,7 @@ class Board
         end
       end
     end
-  available_moves
+    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
   end
 
 
@@ -756,7 +791,7 @@ class Board
     puts "  a b c d e f g h"
     @board.reverse.each do |row|
       new_row = []
-      new_row << h_index
+
        h_index % 2 == 0 ? start_white = false : start_white = true
 
       row.each do |square|
@@ -768,13 +803,19 @@ class Board
         start_white == true ? start_white = false : start_white = true
       end
 
-      new_row << h_index
+      puts new_row.unshift(h_index).push(h_index).join(" ")
       h_index -= 1
-      puts new_row.join(" ")
     end
     puts "  a b c d e f g h"
   end
 
+  #for testing different scenarios
+  def test_init
+    @board[1][4].piece = Bishop.new(@board[1][4], "♗", "white")
+    @board[0][4].piece = King.new(@board[0][4], "♔", 'white')
+
+    @board[7][4].piece = Queen.new(@board[7][4], "♛", "black" )
+  end
 
   def initialize_board_with_pieces #done
 
@@ -814,6 +855,7 @@ end
 board = Board.new
 board.generate_square_coordinates
 board.initialize_board_with_pieces
+#board.test_init #use for testing scenarios
 board.experimental_print_board
 board.global_under_attack_check
 
