@@ -1,11 +1,12 @@
 class Board
-  attr_accessor :player_one, :player_two, :board
+  attr_accessor :player_one, :player_two, :board, :pawn_hash
 
   def initialize(player_one="white", player_two="black")
     @player_one = player_one
     @player_two = player_two
 
     @board = Array.new(8){Array.new(8){Square.new}}
+    @pawn_hash = Hash.new
   end
 
   class Square
@@ -77,6 +78,10 @@ class Board
     @player_one
   end
 
+  def get_pawn_hash
+    @pawn_hash
+  end
+
   def switch_players #done
     @player_one, @player_two = @player_two, @player_one
   end
@@ -100,13 +105,18 @@ class Board
 
     castling(move, current.piece)
     pawn_promotion(move, current)
+    double_move_setter(move, current)
 
     #future square
     future = board_accessor(future_position[0], future_position[1])
 
+    #in case of en passant do this then the rest
+    en_passant_case(current, future, current_position, future_position)
+
     future.piece = current.piece
     current.piece.position = future
     current.piece = ""
+    future.piece.moved = true
   end
 
   #helper method
@@ -197,6 +207,41 @@ class Board
     end
     promotion_piece
   end
+
+  #helper method
+  def double_move_setter(move, current)
+    #raise values since a move has been made
+    @pawn_hash.each_key{|key| @pawn_hash[key] += 1}
+
+    #double move = false since it only stays for one move
+    @pawn_hash.each do |pawn, moves_since_dbl|
+      pawn.double_move = false if moves_since_dbl == 1
+    end
+
+    #if a pawn makes a double move it goes into pawn_hash
+    if current.piece.class.name == "Board::Pawn" && current.piece.moved == false # moved may be useless
+      if (move[1].to_i == 2 && move[3].to_i == 4) || (move[1].to_i == 7 && move[3].to_i == 5)
+        current.piece.double_move = true
+        @pawn_hash[current.piece] = 0
+      end
+    end
+  end
+
+  #helper method
+  def en_passant_case(current, future, current_position, future_position)
+    if current.piece.class.name == "Board::Pawn" && future.piece == "" && future_position[1] != current_position[1]
+      if current.piece.color == "white"
+        #note the -1
+        en_passant_square = board_accessor(future_position[0]-1, future_position[1])
+        en_passant_square.piece = ""
+      elsif current_piece.color == "black"
+        #note the +1
+        en_passant_square = board_accessor(future_position[0]+1, future_position[1])
+        en_passant_square.piece = ""
+      end
+    end
+  end
+
 
   #helper method
   def castle_move(move)
@@ -686,7 +731,7 @@ class Board
       if (col+option).between?(0,7)
         pot = board_accessor(row, col+option).piece
         if pot != "" && pot.class.name == "Board::Pawn"
-          available_moves << [row+move_inc, col+option] if pot.color != pawn.color && pot.double_move == false
+          available_moves << [row+move_inc, col+option] if pot.color != pawn.color && pot.double_move == true
         end
       end
     end
