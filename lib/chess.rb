@@ -80,7 +80,7 @@ class Board
     @player_one
   end
 
-  def get_pawn_hash
+  def get_pawn_hash #done
     @pawn_hash
   end
 
@@ -238,21 +238,21 @@ class Board
           end
         end
 
+        #stopped working below, whatever
+
+        puts "Load successful! Have fun playing!"
+        print_board
+
         pawn_hash.each do |pawn_info|
-          puts print "pawn info #{pawn_info}"
           row = pawn_info[0]
           col = pawn_info[1]
           count = pawn_info[2]
 
-          puts row, col, count
           ph = get_pawn_hash
           ph[board_accessor(row, col).piece] = count
         end
-
       end
     end
-    puts "Load successful! Have fun playing!"
-    print_board
   end
 
   def symbol_transcribe(symbol, square)
@@ -679,8 +679,7 @@ class Board
     end
   end
 
-  #helper method #the fucker doesnt work fuck
-  #QUAZI fixed in move, still needs work
+  #helper method
   def theoretical_check_screen(piece, available_moves)
     row, col = piece.position.coordinates
     current = piece.position
