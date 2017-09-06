@@ -6,5 +6,5 @@ Game is finalized, GG. This took way more that expected, but it's rewarding....o
 Files inside lib/cleaned_up is just lib/chess.rb split in multiple .rb files. They don't and shouldn't work.
 
 
-** If you want to play the game, run lib/chess.rb and enjoy. *instructions inside* **
+** If you want to play the game, run lib/chess.rb and enjoy. (*instructions inside*) **
 
