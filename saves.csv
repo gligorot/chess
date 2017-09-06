@@ -1,0 +1,3 @@
+date, savename, player_one, player_two, board_string, moved_string, double_move_string, ph_string
+2017-09-06 19:58:56 +0200,test,white,black,♖♘♗♕♔♗♘♖♙♙♙♙♙♙♙♙________________________________♟♟♟♟♟♟♟♟♜♞♝♛♚♝♞♜,FFFFFFFFFFFFFFFF________________________________FFFFFFFFFFFFFFFF,________FFFFFFFF________________________________FFFFFFFF________,""
+2017-09-06 20:38:43 +0200,testsave,white,black,♖_♗_♔♗_♖♙♙_♙♙♙♙♙♘_♙__♘__♕_________♟_♟_____♞♟____♟♟___♟♟♟♜_♝♛♚♝♞♜,F_F_FF_FFF_FFFFFT_T__T__T_________T_T_____TT____FF___FFFF_FFFFFF,________FF_FFFFF__F_______________F_F______F____FF___FFF________,
