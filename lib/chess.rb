@@ -145,13 +145,26 @@ class Board
         board_string << row
       end
       puts "brd string done"
+
       #moved
       moved_string = ""
       @board.each do |row|
-        row = row.map {|square| square.piece.moved == true ? "T" : "F" if square.piece != ""}.join("")
-        moved_string << row
+        row_str = ""
+        row.each do |square|
+          if square.piece == ""
+            row_str << "_"
+          else
+            if square.piece.moved == true
+              row_str << "T"
+            else
+              row_str << "F"
+            end
+          end
+        end
+        moved_string << row_str
       end
       puts "moved string done"
+
       #double move
       double_move_string = ""
       @board.each do |row|
@@ -199,6 +212,92 @@ class Board
     save_name
   end
 
+  def load_game
+    save_file = print_available
+    save_name = load_legitimacy(save_file)
+
+    save_file.each do |row|
+      if row[:savename] == save_name
+        puts "Loading save with name: #{row[:savename]}, made on date: #{row[:date]}"
+
+        @player_one = row[:player_one]
+        @player_two = row[:player_two]
+
+        rows = row[:board_string].scan(/.{8}/)
+        moved = row[:moved_string].scan(/.{8}/)
+        double_move = row[:double_move_string].scan(/.{8}/)
+        pawn_hash = row[:ph_string].scan(/.{3}/)
+
+
+        8.times do |row_index|
+          8.times do |col_index|
+            square = board_accessor(row_index, col_index)
+            square.piece = symbol_transcribe(rows[row_index][col_index], square)
+            square.piece.moved = status_translate(moved[row_index][col_index]) if square.piece != ""
+            square.piece.double_move = status_translate(double_move[row_index][col_index]) if square.piece.class.name == "Board::Pawn"
+          end
+        end
+
+        pawn_hash.each do |pawn_info|
+          puts print "pawn info #{pawn_info}"
+          row = pawn_info[0]
+          col = pawn_info[1]
+          count = pawn_info[2]
+
+          puts row, col, count
+          ph = get_pawn_hash
+          ph[board_accessor(row, col).piece] = count
+        end
+
+      end
+    end
+    puts "Load successful! Have fun playing!"
+    print_board
+  end
+
+  def symbol_transcribe(symbol, square)
+    if symbol == "_"
+      return ""
+    else
+      case symbol
+      #WHITE
+      when "♙"
+        Pawn.new(square, "♙", "white")
+      when "♘"
+        Knight.new(square, "♘", "white")
+      when "♗"
+        Bishop.new(square, "♗", "white")
+      when "♖"
+        Rook.new(square, "♖", "white")
+      when "♕"
+        Queen.new(square, "♕", "white")
+      when "♔"
+        King.new(square, "♔", "white")
+      #BLACK
+      when "♟"
+        Pawn.new(square,"♟", "black")
+      when "♞"
+        Knight.new(square, "♞", "black")
+      when "♝"
+        Bishop.new(square, "♝", "black")
+      when "♜"
+        Rook.new(square, "♜", "black")
+      when "♛"
+        Queen.new(square, "♛", "black" )
+      when "♚"
+        King.new(square, "♚", 'black')
+      end
+    end
+  end
+
+  #helper method
+  def status_translate(status)
+    if status == "F"
+      return false
+    elsif status == "T"
+      return true
+    end
+  end
 
   #helper method
   def print_available
@@ -997,21 +1096,5 @@ end
 board = Board.new
 board.play
 
-=begin
-board.generate_square_coordinates
-board.initialize_board_with_pieces
-#board.test_init #use for testing scenarios
-board.print_board
-board.global_under_attack_check
 
-50.times do
-  #board.global_under_attack_check
-  puts "STALEMATE" if board.stalemate_check(board.player_on_turn) == true
-  puts "CHECKMATE" if board.checkmate_check(board.player_on_turn) == true
-  board.move
-  board.experimental_print_board
-  #board.switch_players
-  board.global_under_attack_check
-
-end
-=end
+#DONE MOTHER FUCKERRRRRR
