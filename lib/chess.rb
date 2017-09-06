@@ -1,3 +1,5 @@
+require 'csv'
+
 class Board
   attr_accessor :player_one, :player_two, :board, :pawn_hash
 
@@ -90,8 +92,9 @@ class Board
     begin
       puts "It's #{color_on_turn.upcase}'s turn!"
       puts "Insert location of piece and where you want it to move: (ex a2a4)"
-      puts "Alternatively DRAW to offer a draw"
+      puts "Alternatively insert DRAW, SAVE or LOAD"
       move = gets.chomp
+      save_load_check(move)
       draw_offer_check(move) #find a way to stop it later FIX/problem alert
       move_validity_check(move) #potential error #1
       move_color_check(move, color_on_turn)
@@ -119,6 +122,108 @@ class Board
     current.piece.position = future
     current.piece = ""
     future.piece.moved = true
+  end
+
+  #helper method
+  def save_load_check(move)
+    if move == "SAVE"
+      save_game
+    elsif move == "LOAD"
+      load_game
+    end
+  end
+
+  def save_game
+    save_name = save_name_and_legitimacy
+    time = Time.now
+
+    CSV.open("/home/bategjorgija/the_odin_project/chess/saves.csv", 'a') do |save_file|
+      #board
+      board_string = ""
+      @board.each do |row|
+        row =  row.map {|square| square.piece == "" ? "_" : square.piece.symbol}.join("")
+        board_string << row
+      end
+      puts "brd string done"
+      #moved
+      moved_string = ""
+      @board.each do |row|
+        row = row.map {|square| square.piece.moved == true ? "T" : "F" if square.piece != ""}.join("")
+        moved_string << row
+      end
+      puts "moved string done"
+      #double move
+      double_move_string = ""
+      @board.each do |row|
+        row_str = ""
+        row.each do |square|
+          if square.piece.class.name == "Board::Pawn"
+            if square.piece.double_move == true
+              row_str << "T"
+            else
+              row_str << "F"
+            end
+          else
+            row_str << "_"
+          end
+        end
+        double_move_string << row_str
+      end
+
+      #pawn hash
+      ph_string = ""
+      @pawn_hash.each do |k,v|
+        k.position.coordinates.each {|crd| ph_string << crd }
+        ph_string << v
+      end
+      save_file << [time, save_name, @player_one, @player_two, board_string, moved_string, double_move_string, ph_string]
+    end
+    puts "Save successful!"
+  end
+
+  #helper
+  def save_name_and_legitimacy
+    begin
+      puts "Enter a name for your save file:"
+      save_name = gets.chomp
+
+      save_file = CSV.read "/home/bategjorgija/the_odin_project/chess/saves.csv", headers: true, header_converters: :symbol
+
+      save_file.each do |save_instance|
+        raise ArgumentError if save_instance[:savename] == save_name
+      end
+    rescue
+      puts "A file with that name already exists, please use another name"
+      retry
+    end
+    save_name
+  end
+
+
+  #helper method
+  def print_available
+    puts "You've chosen to load a save file!"
+    puts "Printing available save files..."
+    save_file = CSV.read "/home/bategjorgija/the_odin_project/chess/saves.csv", headers: true, header_converters: :symbol
+
+    save_file.each do |save|
+      puts print save[:date], "|", save[:savename]
+    end
+    save_file
+  end
+
+  #helper method
+  def load_legitimacy(save_file)
+    begin
+      puts "Insert the exact name of the file you wish to load:"
+      name = gets.chomp
+
+      raise ArgumentError unless save_file.any? {|row| row[:savename] == name}
+    rescue
+      puts "A save with that name doesn't exist, try again"
+      retry
+    end
+    name
   end
 
   #helper method
