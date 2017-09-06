@@ -86,13 +86,15 @@ class Board
     @player_one, @player_two = @player_two, @player_one
   end
 
-  def move
+  def move(color_on_turn)
     begin
+      puts "It's #{color_on_turn.upcase}'s turn!"
       puts "Insert location of piece and where you want it to move: (ex a2a4)"
       puts "Alternatively DRAW to offer a draw"
       move = gets.chomp
       draw_offer_check(move) #find a way to stop it later FIX/problem alert
       move_validity_check(move) #potential error #1
+      move_color_check(move, color_on_turn)
 
       current_position = translate_move(move[0..1])
       current = board_accessor(current_position[0], current_position[1])
@@ -127,6 +129,7 @@ class Board
         draw_answer = gets.chomp
         if draw_answer == "DRAW"
           puts "You have agreed to a draw, the game is over without a winner."
+          exit
           #find a way to stop the game later FIX/problem alert
         elsif draw_answer.empty?
           puts "You have rejected the draw offer, the game will proceed."
@@ -138,6 +141,13 @@ class Board
         retry
       end
     end
+  end
+
+  #helper method
+  def move_color_check(move, color_on_turn)
+    pos = translate_move(move[0..1])
+    sqr = board_accessor(pos[0], pos[1])
+    raise ArgumentError if sqr.piece.color != color_on_turn
   end
 
   #helper method
@@ -305,6 +315,7 @@ class Board
   #under attack, cant move without entering a check(everything around under attack) AND cant be saved
   def checkmate_check(king_color)
     king_square = find_king(king_color)
+    global_under_attack_check
     if check_check == true # make a king can/t move method here]
       puts "#{king_color.capitalize} king is under check"
 
@@ -330,10 +341,10 @@ class Board
         end
       else
         attacker_path = find_attacker_path(king_square, king_attacker)
-
+        puts print king_moves
         if king_moves.empty?
           counter_attacks = available_moves_under_check(attacker_path, king_color)
-          if counter_attacks.empty? && king
+          if counter_attacks.empty? #there was a && king here, what did it mean???
             return true
           else
             puts "Your available moves are:"
@@ -419,16 +430,15 @@ class Board
     king_square = find_king(king_color)
     king_moves = generate_moves(king_square.coordinates)
     global_available_moves = []
-    if check_check == false
-      if king_moves.empty? # this is not needed as gam checks everything
-        @board.each do |row|
-          row.each  do |square|
-            global_available_moves << generate_moves(square.coordinates) if square.piece != "" && square.piece.color == king_color
-          end
-        end
+
+    @board.each do |row|
+      row.each  do |square|
+        local = generate_moves(square.coordinates) if square.piece != "" && square.piece.color == king_color
+        local.each {|move| global_available_moves<<move } unless local.nil?
       end
     end
-    return true if global_available_moves.empty?
+    global_under_attack_check
+    return true if global_available_moves.empty? && check_check != true && king_moves.empty?
   end
 
   def global_under_attack_check
@@ -633,7 +643,7 @@ class Board
         end
       end
     end
-    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
+    theory == false ? theoretical_check_screen(queen, available_moves) : available_moves
   end
 
 
@@ -672,7 +682,7 @@ class Board
         end
       end
     end
-    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
+    theory == false ? theoretical_check_screen(rook, available_moves) : available_moves
   end
 
 
@@ -734,7 +744,7 @@ class Board
         end
       end
     end
-    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
+    theory == false ? theoretical_check_screen(knight, available_moves) : available_moves
   end
 
 
@@ -770,11 +780,11 @@ class Board
         end
       end
     end
-    theory == false ? theoretical_check_screen(bishop, available_moves) : available_moves
+    theory == false ? theoretical_check_screen(pawn, available_moves) : available_moves
   end
 
 
-  def print_board #done
+  def OLD_print_board #done
     h_index = 8
     puts ""
     puts "  a b c d e f g h"
@@ -785,7 +795,7 @@ class Board
     puts "  a b c d e f g h"
   end
 
-  def experimental_print_board
+  def print_board
     h_index = 8
     puts ""
     puts "  a b c d e f g h"
@@ -811,10 +821,12 @@ class Board
 
   #for testing different scenarios
   def test_init
-    @board[1][4].piece = Bishop.new(@board[1][4], "♗", "white")
+    #@board[0][5].piece = Bishop.new(@board[0][5], "♗", "white")
     @board[0][4].piece = King.new(@board[0][4], "♔", 'white')
 
     @board[7][4].piece = Queen.new(@board[7][4], "♛", "black" )
+    @board[7][3].piece = Rook.new(@board[7][3], "♜", "black")
+    @board[7][5].piece = Rook.new(@board[7][5], "♜", "black")
   end
 
   def initialize_board_with_pieces #done
@@ -850,19 +862,51 @@ class Board
     @board[7][3].piece = Queen.new(@board[7][3], "♛", "black" )
     @board[7][4].piece = King.new(@board[7][4], "♚", 'black')
   end
+
+  def play
+    generate_square_coordinates
+    initialize_board_with_pieces
+    print_board
+
+    while true
+      global_under_attack_check
+
+      if stalemate_check(player_on_turn) == true
+        puts "STALEMATE"
+        return
+      end
+
+      if checkmate_check(player_on_turn) == true
+        puts "CHECKMATE"
+        return
+      end
+
+
+      move(player_on_turn)
+      print_board
+      switch_players
+    end
+  end
 end
 
 board = Board.new
+board.play
+
+=begin
 board.generate_square_coordinates
 board.initialize_board_with_pieces
 #board.test_init #use for testing scenarios
-board.experimental_print_board
+board.print_board
 board.global_under_attack_check
 
 50.times do
-  board.checkmate_check(board.player_on_turn)
+  #board.global_under_attack_check
+  puts "STALEMATE" if board.stalemate_check(board.player_on_turn) == true
+  puts "CHECKMATE" if board.checkmate_check(board.player_on_turn) == true
   board.move
   board.experimental_print_board
   #board.switch_players
   board.global_under_attack_check
+
 end
+=end
